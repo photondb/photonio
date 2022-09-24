@@ -5,4 +5,6 @@ edition = "2021"
 license = "MIT"
 repository = "https://github.com/photondb/photonio"
 
-[dependencies]
+[target.'cfg(target_os = "linux")'.dependencies]
+io-uring = "0.5"
+slab = "0.4"
