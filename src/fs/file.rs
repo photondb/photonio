@@ -43,7 +43,7 @@ impl ReadAt for File {
     type ReadAt<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn read_at<'b>(&self, buf: &'b mut [u8], pos: u64) -> Self::ReadAt<'b> {
-        op::read_at(self.raw_fd(), buf, pos)
+        op::pread(self.raw_fd(), buf, pos)
     }
 }
 
@@ -59,7 +59,7 @@ impl WriteAt for File {
     type WriteAt<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn write_at<'b>(&self, buf: &'b [u8], pos: u64) -> Self::WriteAt<'b> {
-        op::write_at(self.raw_fd(), buf, pos)
+        op::pwrite(self.raw_fd(), buf, pos)
     }
 }
 

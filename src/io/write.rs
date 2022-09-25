@@ -1,4 +1,7 @@
-use std::{future::Future, io::Result};
+use std::{
+    future::Future,
+    io::{ErrorKind, Result},
+};
 
 pub trait Write {
     type Write<'b>: Future<Output = Result<usize>> + 'b
@@ -13,7 +16,7 @@ pub trait WriteExt {
     where
         Self: 'b;
 
-    fn write_at<'a: 'b, 'b>(&'a mut self, buf: &'b [u8]) -> Self::WriteExact<'b>;
+    fn write_exact<'a: 'b, 'b>(&'a mut self, buf: &'b [u8]) -> Self::WriteExact<'b>;
 }
 
 impl<T> WriteExt for T
@@ -24,11 +27,15 @@ where
     where
         Self: 'b;
 
-    fn write_at<'a: 'b, 'b>(&'a mut self, mut buf: &'b [u8]) -> Self::WriteExact<'b> {
+    fn write_exact<'a: 'b, 'b>(&'a mut self, mut buf: &'b [u8]) -> Self::WriteExact<'b> {
         async move {
             while !buf.is_empty() {
-                let n = self.write(buf).await?;
-                buf = &buf[n..];
+                match self.write(buf).await {
+                    Ok(0) => return Err(ErrorKind::WriteZero.into()),
+                    Ok(n) => buf = &buf[n..],
+                    Err(e) if e.kind() == ErrorKind::Interrupted => {}
+                    Err(e) => return Err(e),
+                }
             }
             Ok(())
         }
@@ -66,9 +73,15 @@ where
     ) -> Self::WriteExactAt<'b> {
         async move {
             while !buf.is_empty() {
-                let n = self.write_at(buf, pos).await?;
-                buf = &buf[n..];
-                pos += n as u64;
+                match self.write_at(buf, pos).await {
+                    Ok(0) => return Err(ErrorKind::WriteZero.into()),
+                    Ok(n) => {
+                        buf = &buf[n..];
+                        pos += n as u64;
+                    }
+                    Err(e) if e.kind() == ErrorKind::Interrupted => {}
+                    Err(e) => return Err(e),
+                }
             }
             Ok(())
         }

@@ -42,10 +42,10 @@ pub fn open(
     flags: libc::c_int,
     mode: libc::mode_t,
 ) -> impl Future<Output = Result<RawFd>> {
-    let pstr = CString::new(path.as_os_str().as_bytes());
+    let path = new_path_str(path);
     async move {
-        let pstr = pstr.map_err(|_| Error::from(ErrorKind::InvalidFilename))?;
-        let sqe = opcode::OpenAt::new(types::Fd(libc::AT_FDCWD), pstr.as_c_str().as_ptr())
+        let path = path?;
+        let sqe = opcode::OpenAt::new(types::Fd(libc::AT_FDCWD), path.as_c_str().as_ptr())
             .flags(flags)
             .mode(mode)
             .build();
@@ -67,7 +67,7 @@ pub fn read<'a>(fd: RawFd, buf: &'a mut [u8]) -> impl Future<Output = Result<usi
     }
 }
 
-pub fn read_at<'a>(
+pub fn pread<'a>(
     fd: RawFd,
     buf: &'a mut [u8],
     pos: u64,
@@ -87,11 +87,7 @@ pub fn write<'a>(fd: RawFd, buf: &'a [u8]) -> impl Future<Output = Result<usize>
     }
 }
 
-pub fn write_at<'a>(
-    fd: RawFd,
-    buf: &'a [u8],
-    pos: u64,
-) -> impl Future<Output = Result<usize>> + 'a {
+pub fn pwrite<'a>(fd: RawFd, buf: &'a [u8], pos: u64) -> impl Future<Output = Result<usize>> + 'a {
     async move {
         let sqe = opcode::Write::new(types::Fd(fd), buf.as_ptr(), buf.len() as _)
             .offset(pos as _)
@@ -127,4 +123,57 @@ pub fn fdatasync(fd: RawFd) -> impl Future<Output = Result<()>> {
             .build();
         submit(sqe)?.await.map(|_| ())
     }
+}
+
+pub fn mkdir(path: &Path, mode: libc::mode_t) -> impl Future<Output = Result<()>> {
+    let path = new_path_str(path);
+    async move {
+        let path = path?;
+        let sqe = opcode::MkDirAt::new(types::Fd(libc::AT_FDCWD), path.as_c_str().as_ptr())
+            .mode(mode)
+            .build();
+        submit(sqe)?.await.map(|_| ())
+    }
+}
+
+pub fn rmdir(path: &Path) -> impl Future<Output = Result<()>> {
+    let path = new_path_str(path);
+    async move {
+        let path = path?;
+        let sqe = opcode::UnlinkAt::new(types::Fd(libc::AT_FDCWD), path.as_c_str().as_ptr())
+            .flags(libc::AT_REMOVEDIR)
+            .build();
+        submit(sqe)?.await.map(|_| ())
+    }
+}
+
+pub fn unlink(path: &Path) -> impl Future<Output = Result<()>> {
+    let path = new_path_str(path);
+    async move {
+        let path = path?;
+        let sqe =
+            opcode::UnlinkAt::new(types::Fd(libc::AT_FDCWD), path.as_c_str().as_ptr()).build();
+        submit(sqe)?.await.map(|_| ())
+    }
+}
+
+pub fn rename(oldpath: &Path, newpath: &Path) -> impl Future<Output = Result<()>> {
+    let oldpath = new_path_str(oldpath);
+    let newpath = new_path_str(newpath);
+    async move {
+        let oldpath = oldpath?;
+        let newpath = newpath?;
+        let sqe = opcode::RenameAt::new(
+            types::Fd(libc::AT_FDCWD),
+            oldpath.as_c_str().as_ptr(),
+            types::Fd(libc::AT_FDCWD),
+            newpath.as_c_str().as_ptr(),
+        )
+        .build();
+        submit(sqe)?.await.map(|_| ())
+    }
+}
+
+fn new_path_str(path: &Path) -> Result<CString> {
+    CString::new(path.as_os_str().as_bytes()).map_err(|_| Error::from(ErrorKind::InvalidFilename))
 }

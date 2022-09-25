@@ -1,4 +1,7 @@
-use std::{future::Future, io::Result};
+use std::{
+    future::Future,
+    io::{ErrorKind, Result},
+};
 
 pub trait Read {
     type Read<'b>: Future<Output = Result<usize>> + 'b
@@ -25,8 +28,12 @@ where
     fn read_exact<'a: 'b, 'b>(&'a mut self, mut buf: &'b mut [u8]) -> Self::ReadExact<'b> {
         async move {
             while !buf.is_empty() {
-                let n = self.read(buf).await?;
-                buf = &mut buf[n..];
+                match self.read(buf).await {
+                    Ok(0) => return Err(ErrorKind::UnexpectedEof.into()),
+                    Ok(n) => buf = &mut buf[n..],
+                    Err(e) if e.kind() == ErrorKind::Interrupted => {}
+                    Err(e) => return Err(e),
+                }
             }
             Ok(())
         }
@@ -62,9 +69,15 @@ where
     ) -> Self::ReadExactAt<'b> {
         async move {
             while !buf.is_empty() {
-                let n = self.read_at(buf, pos).await?;
-                buf = &mut buf[n..];
-                pos += n as u64;
+                match self.read_at(buf, pos).await {
+                    Ok(0) => return Err(ErrorKind::UnexpectedEof.into()),
+                    Ok(n) => {
+                        buf = &mut buf[n..];
+                        pos += n as u64;
+                    }
+                    Err(e) if e.kind() == ErrorKind::Interrupted => {}
+                    Err(e) => return Err(e),
+                }
             }
             Ok(())
         }
