@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use crate::io::{op, Read, Write};
+use crate::io::{op, Read, ReadAt, Write, WriteAt};
 
 pub struct File(OwnedFd);
 
@@ -32,18 +32,34 @@ impl File {
 }
 
 impl Read for File {
-    type ReadFuture<'a> = impl Future<Output = Result<usize>> + 'a;
+    type Read<'b> = impl Future<Output = Result<usize>> + 'b;
 
-    fn read<'a>(&mut self, buf: &'a mut [u8]) -> Self::ReadFuture<'a> {
+    fn read<'b>(&mut self, buf: &'b mut [u8]) -> Self::Read<'b> {
         op::read(self.raw_fd(), buf)
     }
 }
 
-impl Write for File {
-    type WriteFuture<'a> = impl Future<Output = Result<usize>> + 'a;
+impl ReadAt for File {
+    type ReadAt<'b> = impl Future<Output = Result<usize>> + 'b;
 
-    fn write<'a>(&mut self, buf: &'a [u8]) -> Self::WriteFuture<'a> {
+    fn read_at<'b>(&self, buf: &'b mut [u8], pos: u64) -> Self::ReadAt<'b> {
+        op::read_at(self.raw_fd(), buf, pos)
+    }
+}
+
+impl Write for File {
+    type Write<'b> = impl Future<Output = Result<usize>> + 'b;
+
+    fn write<'b>(&mut self, buf: &'b [u8]) -> Self::Write<'b> {
         op::write(self.raw_fd(), buf)
+    }
+}
+
+impl WriteAt for File {
+    type WriteAt<'b> = impl Future<Output = Result<usize>> + 'b;
+
+    fn write_at<'b>(&self, buf: &'b [u8], pos: u64) -> Self::WriteAt<'b> {
+        op::write_at(self.raw_fd(), buf, pos)
     }
 }
 

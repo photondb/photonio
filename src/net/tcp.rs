@@ -99,17 +99,17 @@ impl TcpStream {
 }
 
 impl Read for TcpStream {
-    type ReadFuture<'a> = impl Future<Output = Result<usize>> + 'a;
+    type Read<'a> = impl Future<Output = Result<usize>> + 'a;
 
-    fn read<'a>(&mut self, buf: &'a mut [u8]) -> Self::ReadFuture<'a> {
+    fn read<'a>(&mut self, buf: &'a mut [u8]) -> Self::Read<'a> {
         op::read(self.raw_fd(), buf)
     }
 }
 
 impl Write for TcpStream {
-    type WriteFuture<'a> = impl Future<Output = Result<usize>> + 'a;
+    type Write<'a> = impl Future<Output = Result<usize>> + 'a;
 
-    fn write<'a>(&mut self, buf: &'a [u8]) -> Self::WriteFuture<'a> {
+    fn write<'a>(&mut self, buf: &'a [u8]) -> Self::Write<'a> {
         op::write(self.raw_fd(), buf)
     }
 }

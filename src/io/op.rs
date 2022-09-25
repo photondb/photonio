@@ -67,9 +67,35 @@ pub fn read<'a>(fd: RawFd, buf: &'a mut [u8]) -> impl Future<Output = Result<usi
     }
 }
 
+pub fn read_at<'a>(
+    fd: RawFd,
+    buf: &'a mut [u8],
+    pos: u64,
+) -> impl Future<Output = Result<usize>> + 'a {
+    async move {
+        let sqe = opcode::Read::new(types::Fd(fd), buf.as_mut_ptr(), buf.len() as _)
+            .offset(pos as _)
+            .build();
+        submit(sqe)?.await.map(|n| n as _)
+    }
+}
+
 pub fn write<'a>(fd: RawFd, buf: &'a [u8]) -> impl Future<Output = Result<usize>> + 'a {
     async move {
         let sqe = opcode::Write::new(types::Fd(fd), buf.as_ptr(), buf.len() as _).build();
+        submit(sqe)?.await.map(|n| n as _)
+    }
+}
+
+pub fn write_at<'a>(
+    fd: RawFd,
+    buf: &'a [u8],
+    pos: u64,
+) -> impl Future<Output = Result<usize>> + 'a {
+    async move {
+        let sqe = opcode::Write::new(types::Fd(fd), buf.as_ptr(), buf.len() as _)
+            .offset(pos as _)
+            .build();
         submit(sqe)?.await.map(|n| n as _)
     }
 }
