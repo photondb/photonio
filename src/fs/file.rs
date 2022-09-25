@@ -1,24 +1,33 @@
-use std::{future::Future, io::Result, os::unix::io::RawFd, path::Path};
+use std::{
+    future::Future,
+    io::Result,
+    os::unix::io::{AsRawFd, FromRawFd, OwnedFd, RawFd},
+    path::Path,
+};
 
 use crate::io::{op, Read, Write};
 
-pub struct File(RawFd);
+pub struct File(OwnedFd);
 
 impl File {
+    fn raw_fd(&self) -> RawFd {
+        self.0.as_raw_fd()
+    }
+
     pub async fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         OpenOptions::new().read(true).open(path).await
     }
 
     pub async fn metadata(&self) -> Result<Metadata> {
-        op::statx(self.0).await.map(Metadata::from)
+        op::fstat(self.raw_fd()).await.map(Metadata::from)
     }
 
     pub async fn sync_all(&self) -> Result<()> {
-        op::sync_all(self.0).await
+        op::fsync(self.raw_fd()).await
     }
 
     pub async fn sync_data(&self) -> Result<()> {
-        op::sync_data(self.0).await
+        op::fdatasync(self.raw_fd()).await
     }
 }
 
@@ -26,7 +35,7 @@ impl Read for File {
     type ReadFuture<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn read<'a>(&mut self, buf: &'a mut [u8]) -> Self::ReadFuture<'a> {
-        op::read(self.0, buf)
+        op::read(self.raw_fd(), buf)
     }
 }
 
@@ -34,7 +43,7 @@ impl Write for File {
     type WriteFuture<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn write<'a>(&mut self, buf: &'a [u8]) -> Self::WriteFuture<'a> {
-        op::write(self.0, buf)
+        op::write(self.raw_fd(), buf)
     }
 }
 
@@ -114,7 +123,8 @@ impl OpenOptions {
 
     pub async fn open<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         let fd = op::open(path.as_ref(), self.open_flags(), self.creation_mode).await?;
-        Ok(File(fd))
+        let owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
+        Ok(File(owned_fd))
     }
 
     fn open_flags(&self) -> libc::c_int {

@@ -10,3 +10,4 @@ libc = "0.2"
 io-uring = "0.5"
 scoped-tls = "1.0"
 slab = "0.4"
+socket2 = { version = "0.4", features = ["all"] }
