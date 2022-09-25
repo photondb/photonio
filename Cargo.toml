@@ -6,5 +6,7 @@ license = "MIT"
 repository = "https://github.com/photondb/photonio"
 
 [target.'cfg(target_os = "linux")'.dependencies]
+libc = "0.2"
 io-uring = "0.5"
+scoped-tls = "1.0"
 slab = "0.4"

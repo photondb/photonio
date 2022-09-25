@@ -1,9 +1,11 @@
 use std::{future::Future, io::Result};
 
 pub trait Write {
-    type WriteFuture: Future<Output = Result<usize>>;
+    type WriteFuture<'a>: Future<Output = Result<usize>> + 'a
+    where
+        Self: 'a;
 
-    fn write(&mut self, buf: &[u8]) -> Self::WriteFuture;
+    fn write<'a>(&mut self, buf: &'a [u8]) -> Self::WriteFuture<'a>;
 }
 
 pub trait WriteAt {
