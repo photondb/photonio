@@ -7,6 +7,9 @@ use std::{
 
 use crate::io::Driver;
 
+mod builder;
+pub use builder::Builder;
+
 pub struct Runtime {
     driver: Driver,
 }
@@ -18,7 +21,7 @@ impl Runtime {
     }
 
     /// Runs a future to completion.
-    pub fn run<F>(&self, future: F) -> F::Output
+    pub fn block_on<F>(&self, future: F) -> F::Output
     where
         F: Future,
     {

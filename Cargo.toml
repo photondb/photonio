@@ -1,13 +1,2 @@
-[package]
-name = "photonio"
-version = "0.1.0"
-edition = "2021"
-license = "MIT"
-repository = "https://github.com/photondb/photonio"
-
-[target.'cfg(target_os = "linux")'.dependencies]
-libc = "0.2"
-io-uring = { version = "0.5", features = ["unstable"] }
-scoped-tls = "1.0"
-slab = "0.4"
-socket2 = { version = "0.4", features = ["all"] }
+[workspace]
+members = ["photonio", "photonio-macros"]
