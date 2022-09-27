@@ -1,13 +1,15 @@
 use std::{
+    mem,
     cell::RefCell,
     future::Future,
     io::{Error, ErrorKind, Result},
     pin::Pin,
     rc::Rc,
     task::{Context, Poll, Waker},
+    os::unix::io::{RawFd, AsRawFd, FromRawFd, OwnedFd},
 };
 
-use io_uring::{squeue, IoUring};
+use io_uring::{types, opcode, squeue, IoUring};
 use scoped_tls::scoped_thread_local;
 use slab::Slab;
 
@@ -48,14 +50,17 @@ impl Driver {
 struct Inner {
     io: IoUring,
     ops: OpTable,
+    waker: EventFd,
 }
 
 impl Inner {
     fn new() -> Result<Self> {
         let io = IoUring::new(1024)?;
+        let waker = EventFd::new()?;
         Ok(Self {
             io,
             ops: OpTable::default(),
+            waker,
         })
     }
 
@@ -76,9 +81,9 @@ impl Inner {
         cq.sync();
 
         for cqe in cq {
-            let index = cqe.user_data() as _;
-            let result = result_from_return_value(cqe.result());
-            self.ops.complete(index, result);
+            let token = cqe.user_data() as _;
+            let result = syscall_result(cqe.result());
+            self.ops.complete(token, result);
         }
     }
 
@@ -131,8 +136,9 @@ impl Future for Op {
 #[derive(Default)]
 enum OpState {
     #[default]
-    Inited,
+    Init,
     Polled(Waker),
+    Canceled,
     Completed(Result<u32>),
 }
 
@@ -141,8 +147,8 @@ struct OpTable(Rc<RefCell<Slab<OpState>>>);
 
 impl OpTable {
     fn insert(&mut self) -> Op {
-        let mut slab = self.0.borrow_mut();
-        let index = slab.insert(OpState::Inited);
+        let mut table = self.0.borrow_mut();
+        let index = table.insert(OpState::Init);
         Op {
             index,
             table: self.clone(),
@@ -150,10 +156,10 @@ impl OpTable {
     }
 
     fn poll(&mut self, index: usize, waker: &Waker) -> Poll<Result<u32>> {
-        let mut slab = self.0.borrow_mut();
-        let state = slab.get_mut(index).unwrap();
-        match std::mem::take(state) {
-            OpState::Inited => {
+        let mut table = self.0.borrow_mut();
+        let state = table.get_mut(index).unwrap();
+        match mem::take(state) {
+            OpState::Init => {
                 *state = OpState::Polled(waker.clone());
                 Poll::Pending
             }
@@ -163,34 +169,76 @@ impl OpTable {
                 }
                 Poll::Pending
             }
+            OpState::Canceled => unreachable!(),
             OpState::Completed(result) => {
-                slab.remove(index);
+                table.remove(index);
                 Poll::Ready(result)
             }
         }
     }
 
+    fn cancel(&mut self, index: usize) {
+        let mut table = self.0.borrow_mut();
+        let state = table.get_mut(index).unwrap();
+        match mem::take(state) {
+            OpState::Init | OpState::Polled(_) => {
+                *state = OpState::Canceled;
+            }
+            OpState::Canceled => unreachable!(),
+            OpState::Completed(_) => {
+                table.remove(index);
+            }
+        }
+    }
+
     fn complete(&mut self, index: usize, result: Result<u32>) {
-        let mut slab = self.0.borrow_mut();
-        let state = slab.get_mut(index).unwrap();
-        match std::mem::take(state) {
-            OpState::Inited => {
+        let mut table = self.0.borrow_mut();
+        let state = table.get_mut(index).unwrap();
+        match mem::take(state) {
+            OpState::Init => {
                 *state = OpState::Completed(result);
             }
             OpState::Polled(w) => {
                 *state = OpState::Completed(result);
                 w.wake();
             }
+            OpState::Canceled => {},
             OpState::Completed(..) => unreachable!(),
         }
     }
 }
 
-fn result_from_return_value(value: i32) -> Result<u32> {
-    if value >= 0 {
-        Ok(value as u32)
+struct EventFd {
+    fd: OwnedFd,
+}
+
+impl EventFd {
+    const TOKEN: u64 = 1 << 63;
+
+    fn new() -> Result<Self> {
+        let fd = unsafe {
+            let fd = syscall_result(libc::eventfd(0, libc::EFD_CLOEXEC))?;
+            OwnedFd::from_raw_fd(fd as RawFd)
+        };
+        Ok(Self { fd })
+    }
+
+    fn wake(&self) -> Result<()> {
+        let buf = 1u64.to_ne_bytes();
+        let res = unsafe { libc::write(self.fd.as_raw_fd(), buf.as_ptr() as _, buf.len() as _) };
+        syscall_result(res as _).map(|_| ())
+    }
+
+    fn wait_sqe(&self, buf: &mut [u8; 8]) -> squeue::Entry {
+        opcode::Read::new(types::Fd(self.fd.as_raw_fd()), buf.as_mut_ptr(), buf.len() as _).build().user_data(Self::TOKEN)
+    }
+}
+
+fn syscall_result(res: i32) -> Result<u32> {
+    if res >= 0 {
+        Ok(res as u32)
     } else {
-        Err(Error::from_raw_os_error(-value))
+        Err(Error::from_raw_os_error(-res))
     }
 }
 
