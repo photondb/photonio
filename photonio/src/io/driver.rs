@@ -1,15 +1,15 @@
 use std::{
-    mem,
     cell::RefCell,
     future::Future,
     io::{Error, ErrorKind, Result},
+    mem,
+    os::unix::io::{AsRawFd, FromRawFd, OwnedFd, RawFd},
     pin::Pin,
     rc::Rc,
     task::{Context, Poll, Waker},
-    os::unix::io::{RawFd, AsRawFd, FromRawFd, OwnedFd},
 };
 
-use io_uring::{types, opcode, squeue, IoUring};
+use io_uring::{opcode, squeue, types, IoUring};
 use scoped_tls::scoped_thread_local;
 use slab::Slab;
 
@@ -202,7 +202,7 @@ impl OpTable {
                 *state = OpState::Completed(result);
                 w.wake();
             }
-            OpState::Canceled => {},
+            OpState::Canceled => {}
             OpState::Completed(..) => unreachable!(),
         }
     }
@@ -230,7 +230,13 @@ impl EventFd {
     }
 
     fn wait_sqe(&self, buf: &mut [u8; 8]) -> squeue::Entry {
-        opcode::Read::new(types::Fd(self.fd.as_raw_fd()), buf.as_mut_ptr(), buf.len() as _).build().user_data(Self::TOKEN)
+        opcode::Read::new(
+            types::Fd(self.fd.as_raw_fd()),
+            buf.as_mut_ptr(),
+            buf.len() as _,
+        )
+        .build()
+        .user_data(Self::TOKEN)
     }
 }
 
@@ -245,5 +251,5 @@ fn syscall_result(res: i32) -> Result<u32> {
 scoped_thread_local!(static CURRENT: RefCell<Inner>);
 
 pub fn submit(sqe: squeue::Entry) -> Result<Op> {
-    CURRENT.with(|driver| driver.borrow_mut().push(sqe))
+    CURRENT.with(|inner| inner.borrow_mut().push(sqe))
 }

@@ -2,22 +2,55 @@ use std::{
     future::Future,
     io::Result,
     pin::pin,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
     task::{Context, Poll, RawWaker, RawWakerVTable, Waker},
 };
 
-use crate::io::Driver;
+use scoped_tls::scoped_thread_local;
 
-mod builder;
-pub use builder::Builder;
+mod task;
+
+mod worker;
+use worker::Worker;
+
+pub struct Builder {
+    num_threads: usize,
+}
+
+impl Builder {
+    pub fn new() -> Self {
+        Self { num_threads: 0 }
+    }
+
+    pub fn num_threads(&mut self, num_threads: usize) -> &mut Self {
+        self.num_threads = num_threads;
+        self
+    }
+
+    pub fn build(&mut self) -> Result<Runtime> {
+        let inner = Inner::new();
+        Ok(Runtime {
+            inner: Arc::new(inner),
+        })
+    }
+}
+
+impl Default for Builder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 pub struct Runtime {
-    driver: Driver,
+    inner: Arc<Inner>,
 }
 
 impl Runtime {
     pub fn new() -> Result<Self> {
-        let driver = Driver::new()?;
-        Ok(Self { driver })
+        Builder::new().build()
     }
 
     /// Runs a future to completion.
@@ -25,18 +58,7 @@ impl Runtime {
     where
         F: Future,
     {
-        let waker = unsafe { Waker::from_raw(DUMMY_RAW_WAKER) };
-        let mut cx = Context::from_waker(&waker);
-
-        self.driver.with(|| {
-            let mut future = pin!(future);
-            loop {
-                if let Poll::Ready(output) = future.as_mut().poll(&mut cx) {
-                    return output;
-                }
-                self.driver.park().unwrap();
-            }
-        })
+        todo!()
     }
 
     /// Spawns a future onto the runtime.
@@ -49,6 +71,39 @@ impl Runtime {
     }
 }
 
-const DUMMY_RAW_WAKER: RawWaker = RawWaker::new(std::ptr::null(), &DUMMY_RAW_VTABLE);
-const DUMMY_RAW_VTABLE: RawWakerVTable =
-    RawWakerVTable::new(|_| DUMMY_RAW_WAKER, |_| (), |_| (), |_| ());
+pub struct Inner {
+    workers: Vec<Arc<Worker>>,
+    next_worker: AtomicUsize,
+}
+
+impl Inner {
+    fn new() -> Self {
+        Self {
+            workers: Vec::new(),
+            next_worker: AtomicUsize::new(0),
+        }
+    }
+
+    fn spawn<F>(&self, future: F)
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        let worker = self.next_worker();
+    }
+
+    fn next_worker(&self) -> &Worker {
+        let next = self.next_worker.fetch_add(1, Ordering::Relaxed);
+        &self.workers[next % self.workers.len()]
+    }
+}
+
+scoped_thread_local!(static CURRENT: Arc<Inner>);
+
+pub fn spawn<F>(future: F)
+where
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
+{
+    CURRENT.with(|inner| inner.spawn(future))
+}

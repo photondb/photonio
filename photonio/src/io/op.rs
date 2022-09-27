@@ -37,6 +37,13 @@ pub fn connect(fd: RawFd, addr: SockAddr) -> impl Future<Output = Result<()>> {
     }
 }
 
+pub fn shutdown(fd: RawFd, how: libc::c_int) -> impl Future<Output = Result<()>> {
+    async move {
+        let sqe = opcode::Shutdown::new(types::Fd(fd), how).build();
+        submit(sqe)?.await.map(|_| ())
+    }
+}
+
 pub fn open(
     path: &Path,
     flags: libc::c_int,

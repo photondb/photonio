@@ -10,7 +10,7 @@ use crate::io::{op, Read, ReadAt, Write, WriteAt};
 pub struct File(OwnedFd);
 
 impl File {
-    fn raw_fd(&self) -> RawFd {
+    fn fd(&self) -> RawFd {
         self.0.as_raw_fd()
     }
 
@@ -19,15 +19,15 @@ impl File {
     }
 
     pub async fn metadata(&self) -> Result<Metadata> {
-        op::fstat(self.raw_fd()).await.map(Metadata::from)
+        op::fstat(self.fd()).await.map(Metadata::from)
     }
 
     pub async fn sync_all(&self) -> Result<()> {
-        op::fsync(self.raw_fd()).await
+        op::fsync(self.fd()).await
     }
 
     pub async fn sync_data(&self) -> Result<()> {
-        op::fdatasync(self.raw_fd()).await
+        op::fdatasync(self.fd()).await
     }
 }
 
@@ -35,7 +35,7 @@ impl Read for File {
     type Read<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn read<'b>(&mut self, buf: &'b mut [u8]) -> Self::Read<'b> {
-        op::read(self.raw_fd(), buf)
+        op::read(self.fd(), buf)
     }
 }
 
@@ -43,7 +43,7 @@ impl ReadAt for File {
     type ReadAt<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn read_at<'b>(&self, buf: &'b mut [u8], pos: u64) -> Self::ReadAt<'b> {
-        op::pread(self.raw_fd(), buf, pos)
+        op::pread(self.fd(), buf, pos)
     }
 }
 
@@ -51,7 +51,7 @@ impl Write for File {
     type Write<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn write<'b>(&mut self, buf: &'b [u8]) -> Self::Write<'b> {
-        op::write(self.raw_fd(), buf)
+        op::write(self.fd(), buf)
     }
 }
 
@@ -59,7 +59,7 @@ impl WriteAt for File {
     type WriteAt<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn write_at<'b>(&self, buf: &'b [u8], pos: u64) -> Self::WriteAt<'b> {
-        op::pwrite(self.raw_fd(), buf, pos)
+        op::pwrite(self.fd(), buf, pos)
     }
 }
 
@@ -73,6 +73,7 @@ impl Metadata {
     }
 }
 
+#[doc(hidden)]
 impl From<libc::statx> for Metadata {
     fn from(stat: libc::statx) -> Self {
         Self { len: stat.stx_size }

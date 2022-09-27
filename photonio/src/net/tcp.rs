@@ -6,14 +6,15 @@ use std::{
     time::Duration,
 };
 
-use socket2::{Domain, Socket, Type};
+use socket2::{Domain, SockAddr, Socket, Type};
 
+use super::Shutdown;
 use crate::io::{op, Read, Write};
 
 pub struct TcpListener(Socket);
 
 impl TcpListener {
-    fn raw_fd(&self) -> RawFd {
+    fn fd(&self) -> RawFd {
         self.0.as_raw_fd()
     }
 
@@ -39,25 +40,30 @@ impl TcpListener {
     }
 
     pub async fn accept(&self) -> Result<(TcpStream, SocketAddr)> {
-        let (fd, addr) = op::accept(self.raw_fd()).await?;
+        let (fd, addr) = op::accept(self.fd()).await?;
         let socket = unsafe { Socket::from_raw_fd(fd) };
-        let sock_addr = addr
-            .as_socket()
-            .ok_or_else(|| Error::new(ErrorKind::Other, "invalid socket address"))?;
-        Ok((TcpStream(socket), sock_addr))
+        let socket_addr = to_socket_addr(addr)?;
+        Ok((TcpStream(socket), socket_addr))
     }
 
     pub fn local_addr(&self) -> Result<SocketAddr> {
         let addr = self.0.local_addr()?;
-        addr.as_socket()
-            .ok_or_else(|| Error::new(ErrorKind::Other, "invalid socket address"))
+        to_socket_addr(addr)
+    }
+
+    pub fn ttl(&self) -> Result<u32> {
+        self.0.ttl()
+    }
+
+    pub fn set_ttl(&self, ttl: u32) -> Result<()> {
+        self.0.set_ttl(ttl)
     }
 }
 
 pub struct TcpStream(Socket);
 
 impl TcpStream {
-    fn raw_fd(&self) -> RawFd {
+    fn fd(&self) -> RawFd {
         self.0.as_raw_fd()
     }
 
@@ -67,10 +73,31 @@ impl TcpStream {
         Ok(Self(socket))
     }
 
+    pub async fn shutdown(&self, how: Shutdown) -> Result<()> {
+        let flags = match how {
+            Shutdown::Both => libc::SHUT_RDWR,
+            Shutdown::Read => libc::SHUT_RD,
+            Shutdown::Write => libc::SHUT_WR,
+        };
+        op::shutdown(self.fd(), flags).await.map(|_| ())
+    }
+
+    pub fn peer_addr(&self) -> Result<SocketAddr> {
+        let addr = self.0.peer_addr()?;
+        to_socket_addr(addr)
+    }
+
     pub fn local_addr(&self) -> Result<SocketAddr> {
         let addr = self.0.local_addr()?;
-        addr.as_socket()
-            .ok_or_else(|| Error::new(ErrorKind::Other, "invalid socket address"))
+        to_socket_addr(addr)
+    }
+
+    pub fn ttl(&self) -> Result<u32> {
+        self.0.ttl()
+    }
+
+    pub fn set_ttl(&self, ttl: u32) -> Result<()> {
+        self.0.set_ttl(ttl)
     }
 
     pub fn nodelay(&self) -> Result<bool> {
@@ -99,17 +126,22 @@ impl TcpStream {
 }
 
 impl Read for TcpStream {
-    type Read<'a> = impl Future<Output = Result<usize>> + 'a;
+    type Read<'b> = impl Future<Output = Result<usize>> + 'b;
 
-    fn read<'a>(&mut self, buf: &'a mut [u8]) -> Self::Read<'a> {
-        op::read(self.raw_fd(), buf)
+    fn read<'b>(&mut self, buf: &'b mut [u8]) -> Self::Read<'b> {
+        op::read(self.fd(), buf)
     }
 }
 
 impl Write for TcpStream {
-    type Write<'a> = impl Future<Output = Result<usize>> + 'a;
+    type Write<'b> = impl Future<Output = Result<usize>> + 'b;
 
-    fn write<'a>(&mut self, buf: &'a [u8]) -> Self::Write<'a> {
-        op::write(self.raw_fd(), buf)
+    fn write<'b>(&mut self, buf: &'b [u8]) -> Self::Write<'b> {
+        op::write(self.fd(), buf)
     }
+}
+
+fn to_socket_addr(addr: SockAddr) -> Result<SocketAddr> {
+    addr.as_socket()
+        .ok_or_else(|| Error::new(ErrorKind::Other, "invalid socket address"))
 }
