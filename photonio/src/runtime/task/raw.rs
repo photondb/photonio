@@ -3,7 +3,9 @@ use std::{
     task::{Poll, Waker},
 };
 
-pub struct RawTask {}
+pub struct RawTask {
+    id: u64,
+}
 
 impl RawTask {
     pub fn new<F>(id: u64, future: F) -> Self
@@ -12,6 +14,10 @@ impl RawTask {
         F::Output: 'static,
     {
         todo!()
+    }
+
+    pub fn id(&self) -> u64 {
+        self.id
     }
 
     pub fn join<T>(&self, waker: &Waker) -> Poll<T> {

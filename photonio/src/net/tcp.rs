@@ -14,10 +14,6 @@ use crate::io::{op, Read, Write};
 pub struct TcpListener(Socket);
 
 impl TcpListener {
-    fn fd(&self) -> RawFd {
-        self.0.as_raw_fd()
-    }
-
     pub fn bind<A: ToSocketAddrs>(addrs: A) -> Result<Self> {
         let mut last_err = None;
         for addr in addrs.to_socket_addrs()? {
@@ -37,6 +33,10 @@ impl TcpListener {
         socket.bind(&sock_addr)?;
         socket.listen(1024)?;
         Ok(Self(socket))
+    }
+
+    fn fd(&self) -> RawFd {
+        self.0.as_raw_fd()
     }
 
     pub async fn accept(&self) -> Result<(TcpStream, SocketAddr)> {
@@ -63,14 +63,14 @@ impl TcpListener {
 pub struct TcpStream(Socket);
 
 impl TcpStream {
-    fn fd(&self) -> RawFd {
-        self.0.as_raw_fd()
-    }
-
     pub async fn connect(addr: SocketAddr) -> Result<Self> {
         let socket = Socket::new(Domain::for_address(addr), Type::STREAM, None)?;
         op::connect(socket.as_raw_fd(), addr.into()).await?;
         Ok(Self(socket))
+    }
+
+    fn fd(&self) -> RawFd {
+        self.0.as_raw_fd()
     }
 
     pub async fn shutdown(&self, how: Shutdown) -> Result<()> {

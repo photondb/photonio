@@ -1,3 +1,5 @@
+//! Types for asynchronous writes.
+
 use std::{
     future::Future,
     io::{ErrorKind, Result},

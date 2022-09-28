@@ -1,37 +1,33 @@
 use std::{
     future::Future,
     io::Result,
-    pin::pin,
     sync::mpsc::{channel, Receiver, Sender},
-    task::{Context, Poll, RawWaker, RawWakerVTable, Waker},
+    thread,
 };
 
-use super::task::Task;
+use super::{Builder, JoinHandle};
 use crate::io::Driver;
 
 pub struct Worker {
-    driver: Driver,
-    tx: Sender<Task>,
-    rx: Receiver<Task>,
+    tx: Sender<()>,
+    handle: thread::JoinHandle<()>,
 }
 
 impl Worker {
-    pub fn new() -> Result<Self> {
-        let driver = Driver::new()?;
+    pub fn spawn(id: usize, builder: &Builder) -> Result<Self> {
         let (tx, rx) = channel();
-        Ok(Self { driver, tx, rx })
+        let name = format!("photonio-worker/{}", id);
+        let mut thread = thread::Builder::new().name(name);
+        if let Some(size) = builder.thread_stack_size {
+            thread = thread.stack_size(size);
+        }
+        let handle = thread.spawn(move || {
+            run(rx).unwrap();
+        })?;
+        Ok(Self { tx, handle })
     }
 
-    /// Runs a future to completion.
-    pub fn run(&self) {
-        let waker = unsafe { Waker::from_raw(DUMMY_RAW_WAKER) };
-        let mut cx = Context::from_waker(&waker);
-
-        self.driver.with(|| {})
-    }
-
-    /// Spawns a future onto the runtime.
-    pub fn spawn<F>(&self, future: F)
+    pub fn schedule<F>(&self, future: F) -> JoinHandle<F::Output>
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,
@@ -40,6 +36,7 @@ impl Worker {
     }
 }
 
-const DUMMY_RAW_WAKER: RawWaker = RawWaker::new(std::ptr::null(), &DUMMY_RAW_VTABLE);
-const DUMMY_RAW_VTABLE: RawWakerVTable =
-    RawWakerVTable::new(|_| DUMMY_RAW_WAKER, |_| (), |_| (), |_| ());
+fn run(rx: Receiver<()>) -> Result<()> {
+    let driver = Driver::new()?;
+    todo!()
+}

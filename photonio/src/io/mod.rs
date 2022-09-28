@@ -1,10 +1,10 @@
-pub mod op;
-
 mod read;
 pub use read::{Read, ReadAt, ReadAtExt, ReadExt};
 
 mod write;
-pub use write::{Write, WriteAt};
+pub use write::{Write, WriteAt, WriteAtExt, WriteExt};
+
+pub(crate) mod op;
 
 mod driver;
-pub use driver::{submit, Driver};
+pub(crate) use driver::{submit, Driver};

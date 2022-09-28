@@ -6,12 +6,16 @@ use raw::RawTask;
 mod join;
 pub use join::JoinHandle;
 
+pub use crate::runtime::spawn;
+
 pub struct Task {
     raw: Arc<RawTask>,
 }
 
+pub struct TaskId(u64);
+
 impl Task {
-    pub fn new<F>(id: u64, future: F) -> Self
+    pub(crate) fn new<F>(id: u64, future: F) -> Self
     where
         F: Future + 'static,
         F::Output: 'static,
@@ -20,7 +24,7 @@ impl Task {
         Self { raw: Arc::new(raw) }
     }
 
-    pub fn run(self) {
-        todo!()
+    pub fn id(&self) -> TaskId {
+        TaskId(self.raw.id())
     }
 }

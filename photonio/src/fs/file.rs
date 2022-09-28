@@ -10,12 +10,12 @@ use crate::io::{op, Read, ReadAt, Write, WriteAt};
 pub struct File(OwnedFd);
 
 impl File {
-    fn fd(&self) -> RawFd {
-        self.0.as_raw_fd()
-    }
-
     pub async fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         OpenOptions::new().read(true).open(path).await
+    }
+
+    fn fd(&self) -> RawFd {
+        self.0.as_raw_fd()
     }
 
     pub async fn metadata(&self) -> Result<Metadata> {
@@ -87,7 +87,6 @@ pub struct OpenOptions {
     truncate: bool,
     create: bool,
     create_new: bool,
-    creation_mode: u32,
 }
 
 impl OpenOptions {
@@ -99,7 +98,6 @@ impl OpenOptions {
             truncate: false,
             create: false,
             create_new: false,
-            creation_mode: 0o666,
         }
     }
 
@@ -133,13 +131,8 @@ impl OpenOptions {
         self
     }
 
-    pub fn creation_mode(&mut self, creation_mode: u32) -> &mut Self {
-        self.creation_mode = creation_mode;
-        self
-    }
-
     pub async fn open<P: AsRef<Path>>(&self, path: P) -> Result<File> {
-        let fd = op::open(path.as_ref(), self.open_flags(), self.creation_mode).await?;
+        let fd = op::open(path.as_ref(), self.open_flags(), 0o666).await?;
         let owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
         Ok(File(owned_fd))
     }

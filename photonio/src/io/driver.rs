@@ -124,6 +124,12 @@ pub struct Op {
     index: usize,
 }
 
+impl Drop for Op {
+    fn drop(&mut self) {
+        self.table.cancel(self.index);
+    }
+}
+
 impl Future for Op {
     type Output = Result<u32>;
 

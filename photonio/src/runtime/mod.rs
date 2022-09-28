@@ -1,109 +1,63 @@
-use std::{
-    future::Future,
-    io::Result,
-    pin::pin,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
-    task::{Context, Poll, RawWaker, RawWakerVTable, Waker},
-};
+use std::{future::Future, io::Result, sync::Arc};
 
 use scoped_tls::scoped_thread_local;
 
 mod task;
+pub use task::JoinHandle;
+
+mod builder;
+pub use builder::Builder;
+
+mod thread;
 
 mod worker;
 use worker::Worker;
 
-pub struct Builder {
-    num_threads: usize,
-}
-
-impl Builder {
-    pub fn new() -> Self {
-        Self { num_threads: 0 }
-    }
-
-    pub fn num_threads(&mut self, num_threads: usize) -> &mut Self {
-        self.num_threads = num_threads;
-        self
-    }
-
-    pub fn build(&mut self) -> Result<Runtime> {
-        let inner = Inner::new();
-        Ok(Runtime {
-            inner: Arc::new(inner),
-        })
-    }
-}
-
-impl Default for Builder {
-    fn default() -> Self {
-        Self::new()
-    }
-}
+mod scheduler;
+use scheduler::Scheduler;
 
 pub struct Runtime {
-    inner: Arc<Inner>,
+    sched: Arc<Scheduler>,
 }
 
 impl Runtime {
     pub fn new() -> Result<Self> {
-        Builder::new().build()
+        Builder::default().build()
+    }
+
+    pub(crate) fn new_with(builder: &Builder) -> Result<Self> {
+        let sched = Scheduler::new_with(builder)?;
+        Ok(Self {
+            sched: Arc::new(sched),
+        })
     }
 
     /// Runs a future to completion.
-    pub fn block_on<F>(&self, future: F) -> F::Output
+    pub fn run<F>(&self, future: F) -> F::Output
     where
-        F: Future,
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
     {
-        todo!()
+        let handle = self.spawn(future);
+        CURRENT.set(&self.sched, || thread::block_on(handle))
     }
 
     /// Spawns a future onto the runtime.
-    pub fn spawn<F>(&self, future: F)
+    pub fn spawn<F>(&self, future: F) -> JoinHandle<F::Output>
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
-        todo!()
+        self.sched.spawn(future)
     }
 }
 
-pub struct Inner {
-    workers: Vec<Arc<Worker>>,
-    next_worker: AtomicUsize,
-}
+scoped_thread_local!(static CURRENT: Arc<Scheduler>);
 
-impl Inner {
-    fn new() -> Self {
-        Self {
-            workers: Vec::new(),
-            next_worker: AtomicUsize::new(0),
-        }
-    }
-
-    fn spawn<F>(&self, future: F)
-    where
-        F: Future + Send + 'static,
-        F::Output: Send + 'static,
-    {
-        let worker = self.next_worker();
-    }
-
-    fn next_worker(&self) -> &Worker {
-        let next = self.next_worker.fetch_add(1, Ordering::Relaxed);
-        &self.workers[next % self.workers.len()]
-    }
-}
-
-scoped_thread_local!(static CURRENT: Arc<Inner>);
-
-pub fn spawn<F>(future: F)
+pub fn spawn<F>(future: F) -> JoinHandle<F::Output>
 where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
 {
-    CURRENT.with(|inner| inner.spawn(future))
+    CURRENT.with(|sched| sched.spawn(future))
 }

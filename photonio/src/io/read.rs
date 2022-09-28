@@ -1,3 +1,5 @@
+//! Types for asynchronous reads.
+
 use std::{
     future::Future,
     io::{ErrorKind, Result},
