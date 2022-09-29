@@ -72,6 +72,7 @@ pub fn open(
 }
 
 /// See `man close.2` for more details.
+#[allow(dead_code)]
 pub fn close(fd: RawFd) -> impl Future<Output = Result<()>> {
     async move {
         let sqe = opcode::Close::new(types::Fd(fd)).build();

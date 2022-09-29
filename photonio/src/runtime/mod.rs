@@ -23,6 +23,7 @@ pub struct Runtime {
 }
 
 impl Runtime {
+    /// Creates a new runtime with default options.
     pub fn new() -> Result<Self> {
         Builder::default().build()
     }

@@ -39,6 +39,7 @@ impl Task {
         (task, handle)
     }
 
+    /// Returns the unique identifier of this task.
     pub fn id(&self) -> TaskId {
         TaskId(self.raw().id())
     }

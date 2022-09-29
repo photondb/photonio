@@ -21,6 +21,7 @@ impl<T> JoinHandle<T> {
         }
     }
 
+    /// Returns a reference to the task.
     pub fn task(&self) -> &Task {
         &self.task
     }
