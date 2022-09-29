@@ -57,6 +57,7 @@ impl Runtime {
 
 scoped_thread_local!(static CURRENT: Arc<Scheduler>);
 
+/// Spawns a task onto the current runtime.
 pub fn spawn<F>(future: F) -> JoinHandle<F::Output>
 where
     F: Future + Send + 'static,
