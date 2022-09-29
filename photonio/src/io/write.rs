@@ -5,6 +5,7 @@ use std::{
     io::{ErrorKind, Result},
 };
 
+/// Asychronous sequential writes.
 pub trait Write {
     type Write<'b>: Future<Output = Result<usize>> + 'b
     where
@@ -13,6 +14,7 @@ pub trait Write {
     fn write<'b>(&mut self, buf: &'b [u8]) -> Self::Write<'b>;
 }
 
+/// Extension methods for [`Write`].
 pub trait WriteExt {
     type WriteExact<'b>: Future<Output = Result<()>> + 'b
     where
@@ -44,6 +46,7 @@ where
     }
 }
 
+/// Asynchronous positional writes.
 pub trait WriteAt {
     type WriteAt<'b>: Future<Output = Result<usize>> + 'b
     where
@@ -52,6 +55,7 @@ pub trait WriteAt {
     fn write_at<'b>(&self, buf: &'b [u8], pos: u64) -> Self::WriteAt<'b>;
 }
 
+/// Extension methods for [`WriteAt`].
 pub trait WriteAtExt {
     type WriteExactAt<'b>: Future<Output = Result<()>> + 'b
     where

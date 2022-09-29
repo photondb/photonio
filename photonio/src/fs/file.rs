@@ -5,7 +5,7 @@ use std::{
     path::Path,
 };
 
-use crate::io::{op, Read, ReadAt, Write, WriteAt};
+use crate::io::{syscall, Read, ReadAt, Write, WriteAt};
 
 /// A handle to an open file on the filesystem.
 ///
@@ -18,15 +18,15 @@ impl File {
     }
 
     pub async fn metadata(&self) -> Result<Metadata> {
-        op::fstat(self.raw_fd()).await.map(Metadata::from)
+        syscall::fstat(self.raw_fd()).await.map(Metadata::from)
     }
 
     pub async fn sync_all(&self) -> Result<()> {
-        op::fsync(self.raw_fd()).await
+        syscall::fsync(self.raw_fd()).await
     }
 
     pub async fn sync_data(&self) -> Result<()> {
-        op::fdatasync(self.raw_fd()).await
+        syscall::fdatasync(self.raw_fd()).await
     }
 }
 
@@ -40,7 +40,7 @@ impl Read for File {
     type Read<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn read<'b>(&mut self, buf: &'b mut [u8]) -> Self::Read<'b> {
-        op::read(self.raw_fd(), buf)
+        syscall::read(self.raw_fd(), buf)
     }
 }
 
@@ -48,7 +48,7 @@ impl ReadAt for File {
     type ReadAt<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn read_at<'b>(&self, buf: &'b mut [u8], pos: u64) -> Self::ReadAt<'b> {
-        op::pread(self.raw_fd(), buf, pos)
+        syscall::pread(self.raw_fd(), buf, pos)
     }
 }
 
@@ -56,7 +56,7 @@ impl Write for File {
     type Write<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn write<'b>(&mut self, buf: &'b [u8]) -> Self::Write<'b> {
-        op::write(self.raw_fd(), buf)
+        syscall::write(self.raw_fd(), buf)
     }
 }
 
@@ -64,7 +64,7 @@ impl WriteAt for File {
     type WriteAt<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn write_at<'b>(&self, buf: &'b [u8], pos: u64) -> Self::WriteAt<'b> {
-        op::pwrite(self.raw_fd(), buf, pos)
+        syscall::pwrite(self.raw_fd(), buf, pos)
     }
 }
 
@@ -140,7 +140,7 @@ impl OpenOptions {
     }
 
     pub async fn open<P: AsRef<Path>>(&self, path: P) -> Result<File> {
-        let fd = op::open(path.as_ref(), self.open_flags(), 0o666).await?;
+        let fd = syscall::open(path.as_ref(), self.open_flags(), 0o666).await?;
         let owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
         Ok(File(owned_fd))
     }

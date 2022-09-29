@@ -5,6 +5,7 @@ use std::{
     io::{ErrorKind, Result},
 };
 
+/// Asychronous sequential reads.
 pub trait Read {
     type Read<'b>: Future<Output = Result<usize>> + 'b
     where
@@ -13,6 +14,7 @@ pub trait Read {
     fn read<'b>(&mut self, buf: &'b mut [u8]) -> Self::Read<'b>;
 }
 
+/// Extension methods for [`Read`].
 pub trait ReadExt {
     type ReadExact<'b>: Future<Output = Result<()>> + 'b
     where
@@ -42,6 +44,7 @@ where
     }
 }
 
+/// Asynchronous positional reads.
 pub trait ReadAt {
     type ReadAt<'b>: Future<Output = Result<usize>> + 'b
     where
@@ -50,6 +53,7 @@ pub trait ReadAt {
     fn read_at<'b>(&self, buf: &'b mut [u8], pos: u64) -> Self::ReadAt<'b>;
 }
 
+/// Extension methods for [`ReadAt`].
 pub trait ReadAtExt {
     type ReadExactAt<'b>: Future<Output = Result<()>> + 'b
     where

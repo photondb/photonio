@@ -8,7 +8,7 @@ use std::{
 
 use socket2::{Domain, SockAddr, Socket, Type};
 
-use crate::io::{op, Read, Write};
+use crate::io::{syscall, Read, Write};
 
 /// A TCP socket listening for connections.
 ///
@@ -28,7 +28,7 @@ impl TcpListener {
     }
 
     pub async fn accept(&self) -> Result<(TcpStream, SocketAddr)> {
-        let (fd, addr) = op::accept(self.raw_fd()).await?;
+        let (fd, addr) = syscall::accept(self.raw_fd()).await?;
         let socket = unsafe { Socket::from_raw_fd(fd) };
         let socket_addr = to_socket_addr(addr)?;
         Ok((TcpStream(socket), socket_addr))
@@ -72,7 +72,7 @@ pub struct TcpStream(Socket);
 impl TcpStream {
     pub async fn connect(addr: SocketAddr) -> Result<Self> {
         let socket = Socket::new(Domain::for_address(addr), Type::STREAM, None)?;
-        op::connect(socket.as_raw_fd(), addr.into()).await?;
+        syscall::connect(socket.as_raw_fd(), addr.into()).await?;
         Ok(Self(socket))
     }
 
@@ -82,7 +82,7 @@ impl TcpStream {
             Shutdown::Read => libc::SHUT_RD,
             Shutdown::Write => libc::SHUT_WR,
         };
-        op::shutdown(self.raw_fd(), flags).await.map(|_| ())
+        syscall::shutdown(self.raw_fd(), flags).await.map(|_| ())
     }
 
     pub fn local_addr(&self) -> Result<SocketAddr> {
@@ -138,7 +138,7 @@ impl Read for TcpStream {
     type Read<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn read<'b>(&mut self, buf: &'b mut [u8]) -> Self::Read<'b> {
-        op::read(self.raw_fd(), buf)
+        syscall::read(self.raw_fd(), buf)
     }
 }
 
@@ -146,7 +146,7 @@ impl Write for TcpStream {
     type Write<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn write<'b>(&mut self, buf: &'b [u8]) -> Self::Write<'b> {
-        op::write(self.raw_fd(), buf)
+        syscall::write(self.raw_fd(), buf)
     }
 }
 
