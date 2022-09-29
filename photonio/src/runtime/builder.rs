@@ -2,10 +2,11 @@ use std::io::Result;
 
 use super::{Runtime, Scheduler};
 
+/// Builds a [`Runtime`] with options.
 #[derive(Default)]
 pub struct Builder {
-    pub(crate) num_threads: Option<usize>,
-    pub(crate) thread_stack_size: Option<usize>,
+    pub(super) num_threads: Option<usize>,
+    pub(super) thread_stack_size: Option<usize>,
 }
 
 impl Builder {

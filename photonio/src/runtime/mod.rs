@@ -1,3 +1,5 @@
+//! The PhotonIO runtime module.
+
 use std::{future::Future, io::Result, sync::Arc};
 
 use scoped_tls::scoped_thread_local;
@@ -15,6 +17,7 @@ use worker::Worker;
 mod scheduler;
 use scheduler::Scheduler;
 
+/// The PhotonIO runtime.
 pub struct Runtime {
     sched: Arc<Scheduler>,
 }
@@ -25,7 +28,7 @@ impl Runtime {
     }
 
     /// Runs a future to completion.
-    pub fn run<F>(&self, future: F) -> F::Output
+    pub fn block_on<F>(&self, future: F) -> F::Output
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,

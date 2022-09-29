@@ -8,6 +8,8 @@ use std::{
     task::{Poll, Waker},
 };
 
+pub use crate::runtime::spawn;
+
 mod raw;
 use raw::RawTask;
 
