@@ -1,16 +1,18 @@
 use std::{
     future::Future,
     io::{Error, ErrorKind, Result},
-    net::{SocketAddr, ToSocketAddrs},
+    net::{Shutdown, SocketAddr, ToSocketAddrs},
     os::unix::io::{AsRawFd, FromRawFd, RawFd},
     time::Duration,
 };
 
 use socket2::{Domain, SockAddr, Socket, Type};
 
-use super::Shutdown;
 use crate::io::{op, Read, Write};
 
+/// A TCP socket listening for connections.
+///
+/// This type is an async version of [`std::net::TcpListener`].
 pub struct TcpListener(Socket);
 
 impl TcpListener {
@@ -25,22 +27,8 @@ impl TcpListener {
         Err(last_err.unwrap_or_else(|| ErrorKind::InvalidInput.into()))
     }
 
-    fn bind_addr(addr: SocketAddr) -> Result<Self> {
-        let socket = Socket::new(Domain::for_address(addr), Type::STREAM, None)?;
-        socket.set_reuse_port(true)?;
-        socket.set_reuse_address(true)?;
-        let sock_addr = addr.into();
-        socket.bind(&sock_addr)?;
-        socket.listen(1024)?;
-        Ok(Self(socket))
-    }
-
-    fn fd(&self) -> RawFd {
-        self.0.as_raw_fd()
-    }
-
     pub async fn accept(&self) -> Result<(TcpStream, SocketAddr)> {
-        let (fd, addr) = op::accept(self.fd()).await?;
+        let (fd, addr) = op::accept(self.raw_fd()).await?;
         let socket = unsafe { Socket::from_raw_fd(fd) };
         let socket_addr = to_socket_addr(addr)?;
         Ok((TcpStream(socket), socket_addr))
@@ -60,6 +48,25 @@ impl TcpListener {
     }
 }
 
+impl TcpListener {
+    fn bind_addr(addr: SocketAddr) -> Result<Self> {
+        let socket = Socket::new(Domain::for_address(addr), Type::STREAM, None)?;
+        socket.set_reuse_port(true)?;
+        socket.set_reuse_address(true)?;
+        let sock_addr = addr.into();
+        socket.bind(&sock_addr)?;
+        socket.listen(1024)?;
+        Ok(Self(socket))
+    }
+
+    fn raw_fd(&self) -> RawFd {
+        self.0.as_raw_fd()
+    }
+}
+
+/// A TCP stream between a local and a remote socket.
+///
+/// This type is an async version of [`std::net::TcpStream`].
 pub struct TcpStream(Socket);
 
 impl TcpStream {
@@ -69,26 +76,22 @@ impl TcpStream {
         Ok(Self(socket))
     }
 
-    fn fd(&self) -> RawFd {
-        self.0.as_raw_fd()
-    }
-
     pub async fn shutdown(&self, how: Shutdown) -> Result<()> {
         let flags = match how {
             Shutdown::Both => libc::SHUT_RDWR,
             Shutdown::Read => libc::SHUT_RD,
             Shutdown::Write => libc::SHUT_WR,
         };
-        op::shutdown(self.fd(), flags).await.map(|_| ())
-    }
-
-    pub fn peer_addr(&self) -> Result<SocketAddr> {
-        let addr = self.0.peer_addr()?;
-        to_socket_addr(addr)
+        op::shutdown(self.raw_fd(), flags).await.map(|_| ())
     }
 
     pub fn local_addr(&self) -> Result<SocketAddr> {
         let addr = self.0.local_addr()?;
+        to_socket_addr(addr)
+    }
+
+    pub fn peer_addr(&self) -> Result<SocketAddr> {
+        let addr = self.0.peer_addr()?;
         to_socket_addr(addr)
     }
 
@@ -125,11 +128,17 @@ impl TcpStream {
     }
 }
 
+impl TcpStream {
+    fn raw_fd(&self) -> RawFd {
+        self.0.as_raw_fd()
+    }
+}
+
 impl Read for TcpStream {
     type Read<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn read<'b>(&mut self, buf: &'b mut [u8]) -> Self::Read<'b> {
-        op::read(self.fd(), buf)
+        op::read(self.raw_fd(), buf)
     }
 }
 
@@ -137,7 +146,7 @@ impl Write for TcpStream {
     type Write<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn write<'b>(&mut self, buf: &'b [u8]) -> Self::Write<'b> {
-        op::write(self.fd(), buf)
+        op::write(self.raw_fd(), buf)
     }
 }
 

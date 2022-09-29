@@ -7,6 +7,9 @@ use std::{
 
 use crate::io::{op, Read, ReadAt, Write, WriteAt};
 
+/// An open file on the filesystem.
+///
+/// This type is an async version of [`std::fs::File`].
 pub struct File(OwnedFd);
 
 impl File {
@@ -14,20 +17,22 @@ impl File {
         OpenOptions::new().read(true).open(path).await
     }
 
-    fn fd(&self) -> RawFd {
-        self.0.as_raw_fd()
-    }
-
     pub async fn metadata(&self) -> Result<Metadata> {
-        op::fstat(self.fd()).await.map(Metadata::from)
+        op::fstat(self.raw_fd()).await.map(Metadata::from)
     }
 
     pub async fn sync_all(&self) -> Result<()> {
-        op::fsync(self.fd()).await
+        op::fsync(self.raw_fd()).await
     }
 
     pub async fn sync_data(&self) -> Result<()> {
-        op::fdatasync(self.fd()).await
+        op::fdatasync(self.raw_fd()).await
+    }
+}
+
+impl File {
+    fn raw_fd(&self) -> RawFd {
+        self.0.as_raw_fd()
     }
 }
 
@@ -35,7 +40,7 @@ impl Read for File {
     type Read<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn read<'b>(&mut self, buf: &'b mut [u8]) -> Self::Read<'b> {
-        op::read(self.fd(), buf)
+        op::read(self.raw_fd(), buf)
     }
 }
 
@@ -43,7 +48,7 @@ impl ReadAt for File {
     type ReadAt<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn read_at<'b>(&self, buf: &'b mut [u8], pos: u64) -> Self::ReadAt<'b> {
-        op::pread(self.fd(), buf, pos)
+        op::pread(self.raw_fd(), buf, pos)
     }
 }
 
@@ -51,7 +56,7 @@ impl Write for File {
     type Write<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn write<'b>(&mut self, buf: &'b [u8]) -> Self::Write<'b> {
-        op::write(self.fd(), buf)
+        op::write(self.raw_fd(), buf)
     }
 }
 
@@ -59,10 +64,12 @@ impl WriteAt for File {
     type WriteAt<'b> = impl Future<Output = Result<usize>> + 'b;
 
     fn write_at<'b>(&self, buf: &'b [u8], pos: u64) -> Self::WriteAt<'b> {
-        op::pwrite(self.fd(), buf, pos)
+        op::pwrite(self.raw_fd(), buf, pos)
     }
 }
 
+/// Metadata information about a file.
+#[derive(Clone)]
 pub struct Metadata {
     len: u64,
 }
@@ -80,6 +87,7 @@ impl From<libc::statx> for Metadata {
     }
 }
 
+/// Options to configure how a file is opened.
 pub struct OpenOptions {
     read: bool,
     write: bool,
@@ -136,7 +144,9 @@ impl OpenOptions {
         let owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };
         Ok(File(owned_fd))
     }
+}
 
+impl OpenOptions {
     fn open_flags(&self) -> libc::c_int {
         let mut flags = match (self.read, self.write, self.append) {
             (true, _, true) => libc::O_RDWR | libc::O_APPEND,
