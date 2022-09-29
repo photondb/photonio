@@ -1,4 +1,4 @@
-//! Networking types and operations.
+//! Primitives for asynchronous networking operations.
 //!
 //! This module is an async version of [`std::net`].
 

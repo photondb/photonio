@@ -1,4 +1,4 @@
-//! Types and operations for asynchronous I/O.
+//! Primitives for asynchronous I/O.
 //!
 //! This module is an async version of [`std::io`].
 

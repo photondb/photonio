@@ -1,4 +1,4 @@
-//! The PhotonIO runtime module.
+//! The PhotonIO runtime.
 
 use std::{future::Future, io::Result, sync::Arc};
 

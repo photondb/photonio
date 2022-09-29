@@ -5,26 +5,31 @@ use std::{
     path::Path,
 };
 
+use super::Metadata;
 use crate::io::{syscall, Read, ReadAt, Write, WriteAt};
 
-/// A handle to an open file on the filesystem.
+/// A reference to an open file.
 ///
 /// This type is an async version of [`std::fs::File`].
 pub struct File(OwnedFd);
 
 impl File {
+    /// See [`std::fs::File::open`].
     pub async fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         OpenOptions::new().read(true).open(path).await
     }
 
+    /// See [`std::fs::File::metadata`].
     pub async fn metadata(&self) -> Result<Metadata> {
-        syscall::fstat(self.raw_fd()).await.map(Metadata::from)
+        syscall::fstat(self.raw_fd()).await.map(Metadata)
     }
 
+    /// See [`std::fs::File::sync_all`].
     pub async fn sync_all(&self) -> Result<()> {
         syscall::fsync(self.raw_fd()).await
     }
 
+    /// See [`std::fs::File::sync_data`].
     pub async fn sync_data(&self) -> Result<()> {
         syscall::fdatasync(self.raw_fd()).await
     }
@@ -68,26 +73,9 @@ impl WriteAt for File {
     }
 }
 
-/// Metadata information about a file.
-#[derive(Clone)]
-pub struct Metadata {
-    len: u64,
-}
-
-impl Metadata {
-    pub fn len(&self) -> u64 {
-        self.len
-    }
-}
-
-#[doc(hidden)]
-impl From<libc::statx> for Metadata {
-    fn from(stat: libc::statx) -> Self {
-        Self { len: stat.stx_size }
-    }
-}
-
 /// Options to configure how a file is opened.
+///
+/// This type is an async version of [`std::fs::OpenOptions`].
 pub struct OpenOptions {
     read: bool,
     write: bool,
@@ -98,6 +86,7 @@ pub struct OpenOptions {
 }
 
 impl OpenOptions {
+    /// See [`std::fs::OpenOptions::new`].
     pub fn new() -> Self {
         Self {
             read: false,
@@ -109,36 +98,43 @@ impl OpenOptions {
         }
     }
 
+    /// See [`std::fs::OpenOptions::read`].
     pub fn read(&mut self, read: bool) -> &mut Self {
         self.read = read;
         self
     }
 
+    /// See [`std::fs::OpenOptions::write`].
     pub fn write(&mut self, write: bool) -> &mut Self {
         self.write = write;
         self
     }
 
+    /// See [`std::fs::OpenOptions::append`].
     pub fn append(&mut self, append: bool) -> &mut Self {
         self.append = append;
         self
     }
 
+    /// See [`std::fs::OpenOptions::truncate`].
     pub fn truncate(&mut self, truncate: bool) -> &mut Self {
         self.truncate = truncate;
         self
     }
 
+    /// See [`std::fs::OpenOptions::create`].
     pub fn create(&mut self, create: bool) -> &mut Self {
         self.create = create;
         self
     }
 
+    /// See [`std::fs::OpenOptions::create_new`].
     pub fn create_new(&mut self, create_new: bool) -> &mut Self {
         self.create_new = create_new;
         self
     }
 
+    /// See [`std::fs::OpenOptions::open`].
     pub async fn open<P: AsRef<Path>>(&self, path: P) -> Result<File> {
         let fd = syscall::open(path.as_ref(), self.open_flags(), 0o666).await?;
         let owned_fd = unsafe { OwnedFd::from_raw_fd(fd) };

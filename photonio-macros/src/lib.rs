@@ -1,12 +1,18 @@
+//! The PhotonIO macros.
+
+#![warn(missing_docs)]
+
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::parse::Parser;
 
+/// Marks a function to be run on a runtime.
 #[proc_macro_attribute]
 pub fn main(attr: TokenStream, item: TokenStream) -> TokenStream {
     convert(attr, item, false)
 }
 
+/// Marks a function to be run on a runtime for tests.
 #[proc_macro_attribute]
 pub fn test(attr: TokenStream, item: TokenStream) -> TokenStream {
     convert(attr, item, true)

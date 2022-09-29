@@ -88,6 +88,7 @@ pub fn fstat(fd: RawFd) -> impl Future<Output = Result<libc::statx>> {
             std::ptr::null(),
             &mut stat as *mut _ as *mut _,
         )
+        .mask(libc::STATX_ALL)
         .build();
         submit(sqe)?.await.map(|_| stat)
     }

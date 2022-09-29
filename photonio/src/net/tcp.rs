@@ -16,6 +16,7 @@ use crate::io::{syscall, Read, Write};
 pub struct TcpListener(Socket);
 
 impl TcpListener {
+    /// See [`std::net::TcpListener::bind`].
     pub fn bind<A: ToSocketAddrs>(addrs: A) -> Result<Self> {
         let mut last_err = None;
         for addr in addrs.to_socket_addrs()? {
@@ -27,6 +28,7 @@ impl TcpListener {
         Err(last_err.unwrap_or_else(|| ErrorKind::InvalidInput.into()))
     }
 
+    /// See [`std::net::TcpListener::accept`].
     pub async fn accept(&self) -> Result<(TcpStream, SocketAddr)> {
         let (fd, addr) = syscall::accept(self.raw_fd()).await?;
         let socket = unsafe { Socket::from_raw_fd(fd) };
@@ -34,15 +36,18 @@ impl TcpListener {
         Ok((TcpStream(socket), socket_addr))
     }
 
+    /// See [`std::net::TcpListener::local_addr`].
     pub fn local_addr(&self) -> Result<SocketAddr> {
         let addr = self.0.local_addr()?;
         to_socket_addr(addr)
     }
 
+    /// See [`std::net::TcpListener::ttl`].
     pub fn ttl(&self) -> Result<u32> {
         self.0.ttl()
     }
 
+    /// See [`std::net::TcpListener::set_ttl`].
     pub fn set_ttl(&self, ttl: u32) -> Result<()> {
         self.0.set_ttl(ttl)
     }
@@ -70,12 +75,14 @@ impl TcpListener {
 pub struct TcpStream(Socket);
 
 impl TcpStream {
+    /// See [`std::net::TcpStream::connect`].
     pub async fn connect(addr: SocketAddr) -> Result<Self> {
         let socket = Socket::new(Domain::for_address(addr), Type::STREAM, None)?;
         syscall::connect(socket.as_raw_fd(), addr.into()).await?;
         Ok(Self(socket))
     }
 
+    /// See [`std::net::TcpStream::shutdown`].
     pub async fn shutdown(&self, how: Shutdown) -> Result<()> {
         let flags = match how {
             Shutdown::Both => libc::SHUT_RDWR,
@@ -85,44 +92,54 @@ impl TcpStream {
         syscall::shutdown(self.raw_fd(), flags).await.map(|_| ())
     }
 
+    /// See [`std::net::TcpStream::local_addr`].
     pub fn local_addr(&self) -> Result<SocketAddr> {
         let addr = self.0.local_addr()?;
         to_socket_addr(addr)
     }
 
+    /// See [`std::net::TcpStream::peer_addr`].
     pub fn peer_addr(&self) -> Result<SocketAddr> {
         let addr = self.0.peer_addr()?;
         to_socket_addr(addr)
     }
 
+    /// See [`std::net::TcpStream::ttl`].
     pub fn ttl(&self) -> Result<u32> {
         self.0.ttl()
     }
 
+    /// See [`std::net::TcpStream::set_ttl`].
     pub fn set_ttl(&self, ttl: u32) -> Result<()> {
         self.0.set_ttl(ttl)
     }
 
+    /// See [`std::net::TcpStream::nodelay`].
     pub fn nodelay(&self) -> Result<bool> {
         self.0.nodelay()
     }
 
+    /// See [`std::net::TcpStream::set_nodelay`].
     pub fn set_nodelay(&self, nodelay: bool) -> Result<()> {
         self.0.set_nodelay(nodelay)
     }
 
+    /// See [`std::net::TcpStream::read_timeout`].
     pub fn read_timeout(&self) -> Result<Option<Duration>> {
         self.0.read_timeout()
     }
 
+    /// See [`std::net::TcpStream::set_read_timeout`].
     pub fn set_read_timeout(&self, dur: Option<Duration>) -> Result<()> {
         self.0.set_read_timeout(dur)
     }
 
+    /// See [`std::net::TcpStream::write_timeout`].
     pub fn write_timeout(&self) -> Result<Option<Duration>> {
         self.0.write_timeout()
     }
 
+    /// See [`std::net::TcpStream::set_write_timeout`].
     pub fn set_write_timeout(&self, dur: Option<Duration>) -> Result<()> {
         self.0.set_write_timeout(dur)
     }

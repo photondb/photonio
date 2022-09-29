@@ -1,4 +1,4 @@
-//! Types and operations for asynchronous tasks.
+//! Primitives for asynchronous tasks.
 //!
 //! This module is similar to [`std::thread`], but for asynchronous tasks instead of threads.
 
