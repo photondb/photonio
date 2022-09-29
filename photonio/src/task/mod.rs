@@ -1,24 +1,67 @@
+//! Types and operations for asynchronous tasks.
+//!
+//! This module is similar to [`std::thread`], but for asynchronous tasks instead of threads.
+
 use std::{
     future::Future,
+    mem::ManuallyDrop,
+    pin::Pin,
     ptr::NonNull,
-    sync::Arc,
-    task::{Poll, Waker},
+    sync::{Arc, Mutex},
+    task::{Context, Poll, Waker},
 };
 
-use futures::task::ArcWake;
+use futures::task::{waker_ref, ArcWake};
 
 mod join;
 pub use join::JoinHandle;
 
+mod schedule;
+use schedule::Schedule;
+
+/// A handle to a task.
 pub struct Task(NonNull<Head>);
 
+/// A unique identifier for a task.
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+pub struct TaskId(u64);
+
 impl Task {
-    pub fn new<F>(id: u64, future: F) -> Self
+    pub(crate) fn new<F, S>(id: u64, future: F, schedule: S) -> Self
     where
-        F: Future + 'static,
-        F::Output: 'static,
+        F: Future + Send,
+        F::Output: Send,
+        S: Schedule + Send,
     {
-        let core = Arc::new(Core::new(id, future));
+        let core = Arc::new(Core::new(id, future, schedule));
+        Self::with_core(core)
+    }
+
+    pub fn id(&self) -> TaskId {
+        TaskId(self.head().id)
+    }
+
+    pub(crate) fn poll(self) {
+        unsafe {
+            (self.head().vtable.poll)(self.0);
+        }
+    }
+
+    pub(crate) fn join<T>(&self, waker: &Waker) -> Poll<T> {
+        let mut result = Poll::Pending;
+        unsafe {
+            (self.head().vtable.join)(self.0, waker, &mut result as *mut _ as *mut _);
+        }
+        result
+    }
+}
+
+impl Task {
+    fn with_core<F, S>(core: Arc<Core<F, S>>) -> Self
+    where
+        F: Future,
+        S: Schedule,
+    {
         let head = unsafe {
             let ptr = Arc::into_raw(core);
             NonNull::new_unchecked(ptr as *mut Head)
@@ -26,81 +69,133 @@ impl Task {
         Self(head)
     }
 
-    fn vtable(&self) -> &'static VTable {
-        unsafe { self.0.as_ref().vtable }
-    }
-
-    pub fn poll(self) {
-        unsafe {
-            (self.vtable().poll)(self.0);
-        }
-    }
-
-    pub fn join<T>(&self, waker: &Waker) -> Poll<T> {
-        let mut poll = Poll::Pending;
-        unsafe {
-            (self.vtable().join)(self.0, waker, &mut poll as *mut _ as *mut _);
-        }
-        poll
+    fn head(&self) -> &Head {
+        unsafe { self.0.as_ref() }
     }
 }
 
 #[repr(C)]
-pub struct Core<F: Future> {
+struct Core<F, S>
+where
+    F: Future,
+    S: Schedule,
+{
     head: Head,
-    body: Body<F>,
+    body: Mutex<Body<F, S>>,
 }
 
 #[repr(C)]
-pub struct Head {
+struct Head {
     id: u64,
     vtable: &'static VTable,
 }
 
-struct Body<F: Future> {
-    future: F,
-}
-
-impl<F> Core<F>
+struct Body<F, S>
 where
     F: Future,
+    S: Schedule,
 {
-    pub fn new(id: u64, future: F) -> Self {
+    state: State<F>,
+    waker: Option<Waker>,
+    future: F,
+    schedule: S,
+}
+
+enum State<F: Future> {
+    Init,
+    Detached,
+    Finished(F::Output),
+    Consumed,
+}
+
+impl<F, S> Core<F, S>
+where
+    F: Future + Send,
+    F::Output: Send,
+    S: Schedule + Send,
+{
+    fn new(id: u64, future: F, schedule: S) -> Self {
         Self {
             head: Head {
                 id,
-                vtable: VTable::new::<F>(),
+                vtable: VTable::new::<F, S>(),
             },
-            body: Body { future },
+            body: Mutex::new(Body {
+                state: State::Init,
+                waker: None,
+                future,
+                schedule,
+            }),
         }
     }
 }
 
-impl<F: Future> ArcWake for Core<F> {
+impl<F, S> ArcWake for Core<F, S>
+where
+    F: Future + Send,
+    F::Output: Send,
+    S: Schedule + Send,
+{
     fn wake_by_ref(arc_self: &Arc<Self>) {
-        todo!()
+        let task = Task::with_core(arc_self.clone());
+        let body = arc_self.body.lock().unwrap();
+        body.schedule.schedule(task);
     }
 }
 
-pub struct VTable {
-    pub poll: unsafe fn(NonNull<Head>),
-    pub join: unsafe fn(NonNull<Head>, &Waker, *mut ()),
+struct VTable {
+    poll: unsafe fn(NonNull<Head>),
+    join: unsafe fn(NonNull<Head>, &Waker, *mut ()),
 }
 
 impl VTable {
-    fn new<F>() -> &'static VTable
+    fn new<F, S>() -> &'static VTable
     where
-        F: Future,
+        F: Future + Send,
+        F::Output: Send,
+        S: Schedule + Send,
     {
         &VTable {
-            poll: poll::<F>,
-            join: join::<F>,
+            poll: poll::<F, S>,
+            join: join::<F, S>,
         }
     }
 }
 
-unsafe fn poll<F: Future>(head: NonNull<Head>) {}
+unsafe fn poll<F, S>(head: NonNull<Head>)
+where
+    F: Future + Send,
+    F::Output: Send,
+    S: Schedule + Send,
+{
+    let core = ManuallyDrop::new(Arc::from_raw(head.as_ptr() as *const Core<F, S>));
+    let waker = waker_ref(&core);
+    let mut cx = Context::from_waker(&waker);
+    let mut body = core.body.lock().unwrap();
+    let future = Pin::new_unchecked(&mut body.future);
+    if let Poll::Ready(output) = future.poll(&mut cx) {
+        body.state = State::Finished(output);
+    }
+}
 
-unsafe fn join<F: Future>(head: NonNull<Head>, waker: &Waker, result: *mut ()) {
-    let core = head.cast::<Core<F>>();
+unsafe fn join<F, S>(head: NonNull<Head>, waker: &Waker, result: *mut ())
+where
+    F: Future + Send,
+    F::Output: Send,
+    S: Schedule + Send,
+{
+    let core = ManuallyDrop::new(Arc::from_raw(head.as_ptr() as *const Core<F, S>));
+    let mut body = core.body.lock().unwrap();
+    let result = result as *mut Poll<F::Output>;
+    match std::mem::replace(&mut body.state, State::Init) {
+        State::Init => {
+            body.waker = Some(waker.clone());
+            *result = Poll::Pending;
+        }
+        State::Finished(output) => {
+            body.state = State::Consumed;
+            *result = Poll::Ready(output);
+        }
+        _ => unreachable!(),
+    }
 }

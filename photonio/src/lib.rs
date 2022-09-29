@@ -6,6 +6,7 @@
 pub mod fs;
 pub mod io;
 pub mod net;
+pub mod task;
 // pub mod runtime;
 
 pub use photonio_macros::{main, test};

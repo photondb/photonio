@@ -7,7 +7,7 @@ use std::{
 
 use crate::io::{op, Read, ReadAt, Write, WriteAt};
 
-/// An open file on the filesystem.
+/// A handle to an open file on the filesystem.
 ///
 /// This type is an async version of [`std::fs::File`].
 pub struct File(OwnedFd);
