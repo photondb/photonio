@@ -44,11 +44,11 @@ impl Task {
         unsafe { self.raw().poll(self.0) }
     }
 
-    pub(crate) fn join<T>(&self, waker: &Waker) -> Poll<T> {
+    pub(super) fn join<T>(&self, waker: &Waker) -> Poll<T> {
         unsafe { self.raw().join(self.0, waker) }
     }
 
-    pub(crate) fn detach(&self) {
+    pub(super) fn detach(&self) {
         unsafe { self.raw().detach(self.0) }
     }
 }

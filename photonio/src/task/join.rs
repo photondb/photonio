@@ -14,7 +14,7 @@ pub struct JoinHandle<T> {
 }
 
 impl<T> JoinHandle<T> {
-    pub(crate) fn new(task: Task) -> Self {
+    pub(super) fn new(task: Task) -> Self {
         Self {
             task,
             _mark: PhantomData,

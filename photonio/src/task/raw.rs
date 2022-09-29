@@ -24,8 +24,8 @@ impl RawTask {
         F::Output: Send,
         S: Schedule + Send,
     {
-        let handle = Arc::new(Handle::new(id, future, schedule));
-        Self::from_handle(handle)
+        let suit = Arc::new(Suit::new(id, future, schedule));
+        unsafe { Self::from_suit(suit) }
     }
 
     pub fn id(&self) -> u64 {
@@ -56,21 +56,66 @@ impl RawTask {
 }
 
 impl RawTask {
-    fn from_handle<F, S>(handle: Arc<Handle<F, S>>) -> NonNull<RawTask>
+    unsafe fn from_suit<F, S>(handle: Arc<Suit<F, S>>) -> NonNull<RawTask>
     where
         F: Future,
         S: Schedule,
     {
         let ptr = Arc::into_raw(handle);
-        unsafe { NonNull::new_unchecked(ptr as *mut RawTask) }
+        NonNull::new_unchecked(ptr as *mut RawTask)
     }
 
-    fn into_handle<F, S>(this: NonNull<RawTask>) -> Arc<Handle<F, S>>
+    unsafe fn into_suit<F, S>(this: NonNull<RawTask>) -> Arc<Suit<F, S>>
     where
         F: Future,
         S: Schedule,
     {
-        unsafe { Arc::from_raw(this.as_ptr() as *mut _) }
+        Arc::from_raw(this.as_ptr() as *mut _)
+    }
+}
+
+#[repr(C)]
+struct Suit<F, S>
+where
+    F: Future,
+    S: Schedule,
+{
+    head: RawTask,
+    core: Mutex<Core<F, S>>,
+}
+
+impl<F, S> Suit<F, S>
+where
+    F: Future + Send,
+    F::Output: Send,
+    S: Schedule + Send,
+{
+    fn new(id: u64, future: F, schedule: S) -> Self {
+        Self {
+            head: RawTask {
+                id,
+                vtable: VTable::new::<F, S>(),
+            },
+            core: Mutex::new(Core {
+                state: State::Init,
+                waker: None,
+                future,
+                schedule,
+            }),
+        }
+    }
+}
+
+impl<F, S> ArcWake for Suit<F, S>
+where
+    F: Future + Send,
+    F::Output: Send,
+    S: Schedule + Send,
+{
+    fn wake_by_ref(arc_self: &Arc<Self>) {
+        let task = unsafe { RawTask::from_suit(arc_self.clone()) };
+        let core = arc_self.core.lock().unwrap();
+        core.schedule.schedule(Task(task));
     }
 }
 
@@ -140,51 +185,6 @@ where
     }
 }
 
-#[repr(C)]
-struct Handle<F, S>
-where
-    F: Future,
-    S: Schedule,
-{
-    head: RawTask,
-    core: Mutex<Core<F, S>>,
-}
-
-impl<F, S> Handle<F, S>
-where
-    F: Future + Send,
-    F::Output: Send,
-    S: Schedule + Send,
-{
-    fn new(id: u64, future: F, schedule: S) -> Self {
-        Self {
-            head: RawTask {
-                id,
-                vtable: VTable::new::<F, S>(),
-            },
-            core: Mutex::new(Core {
-                state: State::Init,
-                waker: None,
-                future,
-                schedule,
-            }),
-        }
-    }
-}
-
-impl<F, S> ArcWake for Handle<F, S>
-where
-    F: Future + Send,
-    F::Output: Send,
-    S: Schedule + Send,
-{
-    fn wake_by_ref(arc_self: &Arc<Self>) {
-        let task = RawTask::from_handle(arc_self.clone());
-        let core = arc_self.core.lock().unwrap();
-        core.schedule.schedule(Task(task));
-    }
-}
-
 struct VTable {
     drop: unsafe fn(NonNull<RawTask>),
     clone: unsafe fn(NonNull<RawTask>) -> NonNull<RawTask>,
@@ -210,12 +210,12 @@ impl VTable {
     }
 }
 
-unsafe fn harness<F, S>(raw: NonNull<RawTask>) -> ManuallyDrop<Arc<Handle<F, S>>>
+unsafe fn suit<F, S>(raw: NonNull<RawTask>) -> ManuallyDrop<Arc<Suit<F, S>>>
 where
     F: Future,
     S: Schedule,
 {
-    ManuallyDrop::new(RawTask::into_handle(raw))
+    ManuallyDrop::new(RawTask::into_suit(raw))
 }
 
 unsafe fn drop<F, S>(raw: NonNull<RawTask>)
@@ -223,7 +223,7 @@ where
     F: Future,
     S: Schedule,
 {
-    let mut this = harness::<F, S>(raw);
+    let mut this = suit::<F, S>(raw);
     ManuallyDrop::drop(&mut this);
 }
 
@@ -232,9 +232,9 @@ where
     F: Future,
     S: Schedule,
 {
-    let this = harness::<F, S>(raw);
+    let this = suit::<F, S>(raw);
     let clone = ManuallyDrop::into_inner(this).clone();
-    RawTask::from_handle(clone)
+    RawTask::from_suit(clone)
 }
 
 unsafe fn poll<F, S>(raw: NonNull<RawTask>)
@@ -243,7 +243,7 @@ where
     F::Output: Send,
     S: Schedule + Send,
 {
-    let this = harness::<F, S>(raw);
+    let this = suit::<F, S>(raw);
     let waker = waker_ref(&this);
     let mut cx = Context::from_waker(&waker);
     let mut core = this.core.lock().unwrap();
@@ -258,7 +258,7 @@ where
     F: Future,
     S: Schedule,
 {
-    let this = harness::<F, S>(raw);
+    let this = suit::<F, S>(raw);
     let mut core = this.core.lock().unwrap();
     *(result as *mut Poll<_>) = core.join(waker);
 }
@@ -268,7 +268,7 @@ where
     F: Future,
     S: Schedule,
 {
-    let this = harness::<F, S>(raw);
+    let this = suit::<F, S>(raw);
     let mut core = this.core.lock().unwrap();
     core.detach();
 }
