@@ -1,6 +1,6 @@
 use std::io::Result;
 
-use super::Runtime;
+use super::{Runtime, Scheduler};
 
 #[derive(Default)]
 pub struct Builder {
@@ -20,6 +20,7 @@ impl Builder {
     }
 
     pub fn build(&self) -> Result<Runtime> {
-        Runtime::new_with(self)
+        let sched = Scheduler::build(self)?;
+        Ok(Runtime::with_sched(sched))
     }
 }

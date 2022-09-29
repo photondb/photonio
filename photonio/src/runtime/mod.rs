@@ -2,8 +2,7 @@ use std::{future::Future, io::Result, sync::Arc};
 
 use scoped_tls::scoped_thread_local;
 
-mod task;
-pub use task::JoinHandle;
+use crate::task::JoinHandle;
 
 mod builder;
 pub use builder::Builder;
@@ -25,13 +24,6 @@ impl Runtime {
         Builder::default().build()
     }
 
-    pub(crate) fn new_with(builder: &Builder) -> Result<Self> {
-        let sched = Scheduler::new_with(builder)?;
-        Ok(Self {
-            sched: Arc::new(sched),
-        })
-    }
-
     /// Runs a future to completion.
     pub fn run<F>(&self, future: F) -> F::Output
     where
@@ -49,6 +41,14 @@ impl Runtime {
         F::Output: Send + 'static,
     {
         self.sched.spawn(future)
+    }
+}
+
+impl Runtime {
+    fn with_sched(sched: Scheduler) -> Self {
+        Self {
+            sched: Arc::new(sched),
+        }
     }
 }
 

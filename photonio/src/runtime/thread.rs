@@ -46,10 +46,10 @@ impl ArcWake for Parker {
     }
 }
 
-thread_local!(static PARKER: Arc<Parker> = Arc::default());
+thread_local!(static CURRENT: Arc<Parker> = Arc::default());
 
-pub fn block_on<F: Future>(future: F) -> F::Output {
-    PARKER.with(|parker| {
+pub(crate) fn block_on<F: Future>(future: F) -> F::Output {
+    CURRENT.with(|parker| {
         let waker = waker_ref(parker);
         let mut cx = Context::from_waker(&waker);
         let mut future = pin!(future);
