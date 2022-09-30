@@ -1,8 +1,8 @@
 use std::io::Result;
 
-pub use tokio::runtime::Runtime;
+use tokio::runtime;
 
-pub struct Builder(tokio::runtime::Builder);
+pub struct Builder(runtime::Builder);
 
 impl Builder {
     pub fn new() -> Self {
@@ -25,3 +25,5 @@ impl Builder {
         self.0.build()
     }
 }
+
+pub struct Runtime(runtime::Runtime);

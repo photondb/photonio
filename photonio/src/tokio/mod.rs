@@ -1,4 +1,4 @@
-//! A Tokio wrapper for PhotonIO.
+//! Wrappers for the Tokio runtime.
 
 pub mod fs;
 pub mod net;

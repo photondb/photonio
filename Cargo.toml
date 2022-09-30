@@ -1,2 +1,2 @@
 [workspace]
-members = ["photonio", "photonio-macros", "photonio-uring", "photonio-tokio"]
+members = ["photonio", "photonio-macros"]
