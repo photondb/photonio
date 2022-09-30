@@ -19,6 +19,16 @@ impl File {
         OpenOptions::new().read(true).open(path).await
     }
 
+    /// See [`std::fs::File::create`].
+    pub async fn create<P: AsRef<Path>>(path: P) -> Result<Self> {
+        OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(path)
+            .await
+    }
+
     /// See [`std::fs::File::metadata`].
     pub async fn metadata(&self) -> Result<Metadata> {
         syscall::fstat(self.raw_fd()).await.map(Metadata)
@@ -42,33 +52,33 @@ impl File {
 }
 
 impl Read for File {
-    type Read<'b> = impl Future<Output = Result<usize>> + 'b;
+    type Read<'a> = impl Future<Output = Result<usize>> + 'a;
 
-    fn read<'b>(&mut self, buf: &'b mut [u8]) -> Self::Read<'b> {
+    fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Self::Read<'a> {
         syscall::read(self.raw_fd(), buf)
     }
 }
 
 impl ReadAt for File {
-    type ReadAt<'b> = impl Future<Output = Result<usize>> + 'b;
+    type ReadAt<'a> = impl Future<Output = Result<usize>> + 'a;
 
-    fn read_at<'b>(&self, buf: &'b mut [u8], pos: u64) -> Self::ReadAt<'b> {
+    fn read_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadAt<'a> {
         syscall::pread(self.raw_fd(), buf, pos)
     }
 }
 
 impl Write for File {
-    type Write<'b> = impl Future<Output = Result<usize>> + 'b;
+    type Write<'a> = impl Future<Output = Result<usize>> + 'a;
 
-    fn write<'b>(&mut self, buf: &'b [u8]) -> Self::Write<'b> {
+    fn write<'a>(&'a mut self, buf: &'a [u8]) -> Self::Write<'a> {
         syscall::write(self.raw_fd(), buf)
     }
 }
 
 impl WriteAt for File {
-    type WriteAt<'b> = impl Future<Output = Result<usize>> + 'b;
+    type WriteAt<'a> = impl Future<Output = Result<usize>> + 'a;
 
-    fn write_at<'b>(&self, buf: &'b [u8], pos: u64) -> Self::WriteAt<'b> {
+    fn write_at<'a>(&'a self, buf: &'a [u8], pos: u64) -> Self::WriteAt<'a> {
         syscall::pwrite(self.raw_fd(), buf, pos)
     }
 }

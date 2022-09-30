@@ -17,7 +17,7 @@ pub struct TcpListener(Socket);
 
 impl TcpListener {
     /// See [`std::net::TcpListener::bind`].
-    pub fn bind<A: ToSocketAddrs>(addrs: A) -> Result<Self> {
+    pub async fn bind<A: ToSocketAddrs>(addrs: A) -> Result<Self> {
         let mut last_err = None;
         for addr in addrs.to_socket_addrs()? {
             match Self::bind_addr(addr) {
