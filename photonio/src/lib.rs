@@ -1,15 +1,4 @@
-//! A runtime for asynchronous filesystem and networking I/O.
-
-#![warn(missing_docs)]
-#![feature(generic_associated_types)]
-#![feature(type_alias_impl_trait)]
-#![feature(io_error_more)]
-#![feature(pin_macro)]
-
-pub mod fs;
-pub mod io;
-pub mod net;
-pub mod runtime;
-pub mod task;
-
-pub use photonio_macros::{main, test};
+#[cfg(feature = "tokio")]
+pub use photonio_tokio::*;
+#[cfg(any(doc, all(target_os = "linux", feature = "uring")))]
+pub use photonio_uring::*;

@@ -1,0 +1,18 @@
+[package]
+name = "photonio-uring"
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+homepage = "https://photondb.io"
+repository = "https://github.com/photondb/photonio"
+description = "The PhotonIO runtime based on io-uring."
+
+[target.'cfg(target_os = "linux")'.dependencies]
+photonio-macros = { version = "0.0.1", path = "../photonio-macros" }
+futures = "0.3"
+libc = "0.2"
+num_cpus = "1.13"
+io-uring = { version = "0.5", features = ["unstable"] }
+scoped-tls = "1.0"
+slab = "0.4"
+socket2 = { version = "0.4", features = ["all"] }

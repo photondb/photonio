@@ -10,6 +10,11 @@ pub struct Builder {
 }
 
 impl Builder {
+    /// Creates a builder with default options.
+    pub fn new() -> Self {
+        Self::default()
+    }
+
     /// Sets the number of threads.
     pub fn num_threads(&mut self, num_threads: usize) -> &mut Self {
         self.num_threads = Some(num_threads);
