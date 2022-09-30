@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  style:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - uses: Swatinem/rust-cache@v1
+    - name: Check format
+      uses: actions-rs/cargo@v1
+      with:
+        command: fmt
+        args: --all -- --check
+    - name: Check clippy
+      uses: actions-rs/cargo@v1
+      with:
+        command: clippy
+        args: --tests --benches --examples --all-features -- -D warnings
+
+  tests:
+    strategy:
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - uses: Swatinem/rust-cache@v1
+    - name: Run unit tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+    - name: Run miri tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: miri
+        args: test
