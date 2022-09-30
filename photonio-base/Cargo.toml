@@ -1,0 +1,11 @@
+[package]
+name = "photonio-base"
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+authors = ["The PhotonIO Authors"]
+homepage = "https://photondb.io"
+repository = "https://github.com/photondb/photonio"
+description = "The base of PhotonIO."
+
+[dependencies]

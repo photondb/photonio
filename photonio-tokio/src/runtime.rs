@@ -22,7 +22,7 @@ impl Builder {
     }
 
     pub fn build(&mut self) -> Result<Runtime> {
-        self.0.build()
+        self.0.build().map(Runtime)
     }
 }
 

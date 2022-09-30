@@ -48,7 +48,8 @@ impl Schedule for Sender<Task> {
 
 fn run(rx: Receiver<Task>) -> Result<()> {
     let driver = Driver::new()?;
-    loop {
+    driver.with(|| loop {
+        let mut num_tasks = 0;
         loop {
             let task = match rx.try_recv() {
                 Ok(task) => task,
@@ -56,7 +57,12 @@ fn run(rx: Receiver<Task>) -> Result<()> {
                 Err(TryRecvError::Disconnected) => return Ok(()),
             };
             task.poll();
+            num_tasks += 1;
         }
-        driver.park()?;
-    }
+        if num_tasks == 0 {
+            driver.park()?;
+        } else {
+            driver.drive()?;
+        }
+    })
 }

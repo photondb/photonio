@@ -1,3 +1,5 @@
+//! Primitives for asynchronous I/O.
+
 mod read;
 pub use read::{Read, ReadAt, ReadAtExt, ReadExt};
 

@@ -1,4 +1,4 @@
-//! Types for asynchronous reads.
+//! Primitives for asynchronous reads.
 
 use std::{
     future::Future,

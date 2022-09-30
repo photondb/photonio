@@ -1,0 +1,19 @@
+[package]
+name = "photonio-core"
+version = "0.0.1"
+edition = "2021"
+license = "MIT"
+authors = ["The PhotonIO Authors"]
+homepage = "https://photondb.io"
+repository = "https://github.com/photondb/photonio"
+description = "The core of PhotonIO."
+
+[dependencies]
+photonio-base = { version = "0.0.1", path = "../photonio-base" }
+io-uring = { version = "0.5", features = ["unstable"] }
+futures = "0.3"
+libc = "0.2"
+num_cpus = "1.13"
+slab = "0.4"
+scoped-tls = "1.0"
+socket2 = { version = "0.4", features = ["all"] }

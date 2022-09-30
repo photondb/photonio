@@ -2,7 +2,10 @@
 //!
 //! This module is an async version of [`std::io`].
 
-pub use crate::common::io::*;
+pub use photonio_base::io::*;
+
+mod op;
+use op::{Op, OpTable};
 
 mod driver;
 pub(crate) use driver::{submit, Driver};

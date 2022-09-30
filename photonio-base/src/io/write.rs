@@ -1,4 +1,4 @@
-//! Types for asynchronous writes.
+//! Primitives for asynchronous writes.
 
 use std::{
     future::Future,

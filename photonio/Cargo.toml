@@ -9,17 +9,11 @@ repository = "https://github.com/photondb/photonio"
 description = "The PhotonIO runtime."
 
 [features]
-tokio = ["dep:tokio"]
+default = ["core"]
+core = ["dep:photonio-core"]
+tokio = ["dep:photonio-tokio"]
 
 [dependencies]
+photonio-core = { version = "0.0.1", path = "../photonio-core", optional = true }
+photonio-tokio = { version = "0.0.1", path = "../photonio-tokio", optional = true }
 photonio-macros = { version = "0.0.1", path = "../photonio-macros" }
-futures = "0.3"
-libc = "0.2"
-num_cpus = "1.13"
-slab = "0.4"
-tokio = { version = "1.21", features = ["full"], optional = true }
-
-[target.'cfg(target_os = "linux")'.dependencies]
-io-uring = { version = "0.5", features = ["unstable"] }
-scoped-tls = "1.0"
-socket2 = { version = "0.4", features = ["all"] }
