@@ -5,8 +5,10 @@ use tokio::task;
 
 use super::{Task, TaskId};
 
+#[derive(Debug)]
 pub struct JoinError(task::JoinError);
 
+#[derive(Debug)]
 pub struct JoinHandle<T> {
     task: Task,
     handle: task::JoinHandle<T>,

@@ -5,6 +5,7 @@ use tokio::task;
 mod join;
 pub use join::JoinHandle;
 
+#[derive(Debug)]
 pub struct Task(TaskId);
 
 impl Task {

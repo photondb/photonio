@@ -4,6 +4,7 @@ use tokio::net;
 
 use super::ToSocketAddrs;
 
+#[derive(Debug)]
 pub struct TcpListener(net::TcpListener);
 
 impl TcpListener {
@@ -30,6 +31,7 @@ impl TcpListener {
     }
 }
 
+#[derive(Debug)]
 pub struct TcpStream(net::TcpStream);
 
 impl TcpStream {

@@ -1,6 +1,8 @@
+use std::fmt;
+
 /// Metadata information about a file.
 ///
-/// See [`std::fs::Metadata`] for more details.
+/// See also [`std::fs::Metadata`].
 #[derive(Clone)]
 pub struct Metadata(libc::statx);
 
@@ -9,22 +11,22 @@ impl Metadata {
         Self(stat)
     }
 
-    /// See [`std::fs::Metadata::len`].
+    /// See also [`std::fs::Metadata::len`].
     pub fn len(&self) -> u64 {
         self.0.stx_size
     }
 
-    /// See [`std::fs::Metadata::is_dir`].
+    /// See also [`std::fs::Metadata::is_dir`].
     pub fn is_dir(&self) -> bool {
         self.is_type(libc::S_IFDIR)
     }
 
-    /// See [`std::fs::Metadata::is_file`].
+    /// See also [`std::fs::Metadata::is_file`].
     pub fn is_file(&self) -> bool {
         self.is_type(libc::S_IFREG)
     }
 
-    /// See [`std::fs::Metadata::is_symlink`].
+    /// See also [`std::fs::Metadata::is_symlink`].
     pub fn is_symlink(&self) -> bool {
         self.is_type(libc::S_IFLNK)
     }
@@ -37,5 +39,16 @@ impl Metadata {
         } else {
             false
         }
+    }
+}
+
+impl fmt::Debug for Metadata {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Metadata")
+            .field("len", &self.len())
+            .field("is_dir", &self.is_dir())
+            .field("is_file", &self.is_file())
+            .field("is_symlink", &self.is_symlink())
+            .finish()
     }
 }

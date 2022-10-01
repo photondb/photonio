@@ -8,6 +8,7 @@ use tokio::{
 use super::Metadata;
 use crate::io::{Read, ReadAt, Write, WriteAt};
 
+#[derive(Debug)]
 pub struct File(fs::File);
 
 impl File {

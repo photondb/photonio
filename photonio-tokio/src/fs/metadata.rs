@@ -1,3 +1,4 @@
+#[derive(Debug)]
 pub struct Metadata(std::fs::Metadata);
 
 impl Metadata {
