@@ -2,22 +2,28 @@ use std::{
     future::Future,
     io::Result,
     sync::atomic::{AtomicU64, Ordering},
+    thread,
 };
 
-use super::{Builder, Worker};
+use super::{Builder, WorkerThread};
 use crate::task::JoinHandle;
 
-pub(super) struct Scheduler {
-    workers: Vec<Worker>,
+pub(super) struct WorkerPool {
+    workers: Vec<WorkerThread>,
     next_id: AtomicU64,
 }
 
-impl Scheduler {
-    pub fn build(builder: &Builder) -> Result<Self> {
+impl WorkerPool {
+    pub fn build(builder: Builder) -> Result<Self> {
         let mut workers = Vec::new();
         let num_threads = builder.num_threads.unwrap_or_else(|| num_cpus::get());
         for id in 0..num_threads {
-            let worker = Worker::spawn(id, builder)?;
+            let name = format!("photonio-worker/{}", id);
+            let mut thread = thread::Builder::new().name(name);
+            if let Some(size) = builder.thread_stack_size {
+                thread = thread.stack_size(size);
+            }
+            let worker = WorkerThread::spawn(thread)?;
             workers.push(worker);
         }
         Ok(Self {

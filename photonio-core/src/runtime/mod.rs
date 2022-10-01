@@ -2,6 +2,7 @@
 
 use std::{future::Future, io::Result, sync::Arc};
 
+use futures::executor::block_on;
 use scoped_tls::scoped_thread_local;
 
 use crate::task::JoinHandle;
@@ -9,18 +10,14 @@ use crate::task::JoinHandle;
 mod builder;
 pub use builder::Builder;
 
-mod thread;
+mod worker_pool;
+use worker_pool::WorkerPool;
 
-mod worker;
-use worker::Worker;
-
-mod scheduler;
-use scheduler::Scheduler;
+mod worker_thread;
+use worker_thread::WorkerThread;
 
 /// The PhotonIO runtime.
-pub struct Runtime {
-    sched: Arc<Scheduler>,
-}
+pub struct Runtime(Arc<WorkerPool>);
 
 impl Runtime {
     /// Creates a new runtime with default options.
@@ -35,7 +32,7 @@ impl Runtime {
         F::Output: Send + 'static,
     {
         let handle = self.spawn(future);
-        CURRENT.set(&self.sched, || thread::block_on(handle))
+        CURRENT.set(&self.0, || block_on(handle))
     }
 
     /// Spawns a future onto the runtime.
@@ -44,19 +41,11 @@ impl Runtime {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
-        self.sched.spawn(future)
+        self.0.spawn(future)
     }
 }
 
-impl Runtime {
-    fn with_sched(sched: Scheduler) -> Self {
-        Self {
-            sched: Arc::new(sched),
-        }
-    }
-}
-
-scoped_thread_local!(static CURRENT: Arc<Scheduler>);
+scoped_thread_local!(static CURRENT: Arc<WorkerPool>);
 
 /// Spawns a task onto the current runtime.
 pub fn spawn<F>(future: F) -> JoinHandle<F::Output>
@@ -64,5 +53,5 @@ where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
 {
-    CURRENT.with(|sched| sched.spawn(future))
+    CURRENT.with(|pool| pool.spawn(future))
 }

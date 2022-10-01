@@ -1,6 +1,6 @@
-use std::io::Result;
+use std::{io::Result, sync::Arc};
 
-use super::{Runtime, Scheduler};
+use super::{Runtime, WorkerPool};
 
 /// Builds a [`Runtime`] with custom options.
 #[derive(Default)]
@@ -16,20 +16,20 @@ impl Builder {
     }
 
     /// Sets the number of threads.
-    pub fn num_threads(&mut self, num_threads: usize) -> &mut Self {
+    pub fn num_threads(mut self, num_threads: usize) -> Self {
         self.num_threads = Some(num_threads);
         self
     }
 
     /// Sets the stack size for each thread.
-    pub fn thread_stack_size(&mut self, thread_stack_size: usize) -> &mut Self {
+    pub fn thread_stack_size(mut self, thread_stack_size: usize) -> Self {
         self.thread_stack_size = Some(thread_stack_size);
         self
     }
 
     /// Creates a runtime with the options.
-    pub fn build(&self) -> Result<Runtime> {
-        let sched = Scheduler::build(self)?;
-        Ok(Runtime::with_sched(sched))
+    pub fn build(self) -> Result<Runtime> {
+        let pool = WorkerPool::build(self)?;
+        Ok(Runtime(Arc::new(pool)))
     }
 }

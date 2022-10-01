@@ -13,17 +13,17 @@ impl Builder {
         Self(b)
     }
 
-    pub fn num_threads(&mut self, num_threads: usize) -> &mut Self {
+    pub fn num_threads(mut self, num_threads: usize) -> Self {
         self.0.worker_threads(num_threads);
         self
     }
 
-    pub fn thread_stack_size(&mut self, thread_stack_size: usize) -> &mut Self {
+    pub fn thread_stack_size(mut self, thread_stack_size: usize) -> Self {
         self.0.thread_stack_size(thread_stack_size);
         self
     }
 
-    pub fn build(&mut self) -> Result<Runtime> {
+    pub fn build(mut self) -> Result<Runtime> {
         self.0.build().map(Runtime)
     }
 }

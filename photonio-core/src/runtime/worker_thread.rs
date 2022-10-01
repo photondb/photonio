@@ -5,24 +5,18 @@ use std::{
     thread,
 };
 
-use super::{Builder, JoinHandle};
 use crate::{
     io::Driver,
-    task::{Schedule, Task},
+    task::{JoinHandle, Schedule, Task},
 };
 
-pub(super) struct Worker {
+pub(super) struct WorkerThread {
     tx: Sender<Task>,
 }
 
-impl Worker {
-    pub fn spawn(id: usize, builder: &Builder) -> Result<Self> {
+impl WorkerThread {
+    pub fn spawn(thread: thread::Builder) -> Result<Self> {
         let (tx, rx) = channel();
-        let name = format!("photonio-worker/{}", id);
-        let mut thread = thread::Builder::new().name(name);
-        if let Some(size) = builder.thread_stack_size {
-            thread = thread.stack_size(size);
-        }
         thread.spawn(move || {
             run(rx).unwrap();
         })?;
