@@ -5,25 +5,25 @@ use std::{
     io::{ErrorKind, Result},
 };
 
-/// A trait for objects that provides asynchronous sequential writes.
+/// Writes some bytes into an object.
 pub trait Write {
     /// A future that resolves to the result of [`Self::write`].
     type Write<'a>: Future<Output = Result<usize>> + 'a
     where
         Self: 'a;
 
-    /// Writes some bytes from `buf` and returns the number of bytes written.
+    /// Writes some bytes from `buf` into this object and returns the number of bytes written.
     fn write<'a>(&'a mut self, buf: &'a [u8]) -> Self::Write<'a>;
 }
 
-/// A trait that provides extension methods for [`Write`].
+/// Provides extension methods for [`Write`].
 pub trait WriteExt {
     /// A future that resolves to the result of [`Self::write_all`].
     type WriteAll<'a>: Future<Output = Result<()>> + 'a
     where
         Self: 'a;
 
-    /// Writes all bytes from `buf`.
+    /// Writes all bytes from `buf` into this object.
     fn write_all<'a>(&'a mut self, buf: &'a [u8]) -> Self::WriteAll<'a>;
 }
 
@@ -50,25 +50,26 @@ where
     }
 }
 
-/// A trait for objects that allows asynchronous positional writes.
+/// Writes some bytes into an object at a given position.
 pub trait WriteAt {
     /// A future that resolves to the result of [`Self::write_at`].
     type WriteAt<'a>: Future<Output = Result<usize>> + 'a
     where
         Self: 'a;
 
-    /// Writes some bytes from `buf` at `pos` and returns the number of bytes written.
+    /// Writes some bytes from `buf` into this object at `pos` and returns the number of bytes
+    /// written.
     fn write_at<'a>(&'a self, buf: &'a [u8], pos: u64) -> Self::WriteAt<'a>;
 }
 
-/// A trait that provides extension methods for [`WriteAt`].
+/// Provides extension methods for [`WriteAt`].
 pub trait WriteAtExt {
     /// A future that resolves to the result of [`Self::write_all_at`].
     type WriteAllAt<'a>: Future<Output = Result<()>> + 'a
     where
         Self: 'a;
 
-    /// Writes all bytes from `buf` at `pos`.
+    /// Writes all bytes from `buf` into this object at `pos`.
     fn write_all_at<'a>(&'a self, buf: &'a [u8], pos: u64) -> Self::WriteAllAt<'a>;
 }
 

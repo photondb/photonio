@@ -1,6 +1,6 @@
 use std::{future::Future, io::Result, net::SocketAddr};
 
-/// A trait for objects that can be resolved to one or more socket addresses.
+/// Resolves to one or more socket addresses.
 ///
 /// This trait is an async version of [`std::net::ToSocketAddrs`].
 pub trait ToSocketAddrs {
@@ -9,6 +9,8 @@ pub trait ToSocketAddrs {
     /// A future that resolves to the result of [`Self::to_socket_addrs`].
     type Future: Future<Output = Result<Self::Iter>>;
 
-    /// See [`std::net::ToSocketAddrs::to_socket_addrs`].
+    /// Resolves this object to an iterator of [`SocketAddr`] values.
+    ///
+    /// See also [`std::net::ToSocketAddrs::to_socket_addrs`].
     fn to_socket_addrs(&self) -> Self::Future;
 }

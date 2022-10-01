@@ -5,25 +5,25 @@ use std::{
     io::{ErrorKind, Result},
 };
 
-/// A trait for objects that allows asynchronous sequential reads.
+/// Reads some bytes from an object.
 pub trait Read {
     /// A future that resolves to the result of [`Self::read`].
     type Read<'a>: Future<Output = Result<usize>> + 'a
     where
         Self: 'a;
 
-    /// Reads some bytes into `buf` and returns the number of bytes read.
+    /// Reads some bytes from this object into `buf` and returns the number of bytes read.
     fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Self::Read<'a>;
 }
 
-/// A trait that provides extension methods for [`Read`].
+/// Provides extension methods for [`Read`].
 pub trait ReadExt {
     /// A future that resolves to the result of [`Self::read_exact`].
     type ReadExact<'a>: Future<Output = Result<()>> + 'a
     where
         Self: 'a;
 
-    /// Reads the exact number of bytes required to fill `buf`.
+    /// Reads the exact number of bytes from this object to fill `buf`.
     fn read_exact<'a>(&'a mut self, buf: &'a mut [u8]) -> Self::ReadExact<'a>;
 }
 
@@ -48,25 +48,25 @@ where
     }
 }
 
-/// A trait for objects that allows asynchronous positional reads.
+/// Reads some bytes from an object at a given position.
 pub trait ReadAt {
     /// A future that resolves to the result of [`Self::read_at`].
     type ReadAt<'a>: Future<Output = Result<usize>> + 'a
     where
         Self: 'a;
 
-    /// Reads some bytes into `buf` at `pos` and returns the number of bytes read.
+    /// Reads some bytes from this object at `pos` into `buf` and returns the number of bytes read.
     fn read_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadAt<'a>;
 }
 
-/// A trait that provides extension methods for [`ReadAt`].
+/// Provides extension methods for [`ReadAt`].
 pub trait ReadAtExt {
     /// A future that resolves to the result of [`Self::read_exact_at`].
     type ReadExactAt<'a>: Future<Output = Result<()>> + 'a
     where
         Self: 'a;
 
-    /// Reads the exact number of bytes required to fill `buf` at `pos`.
+    /// Reads the exact number of bytes from this object at `pos` to fill `buf`.
     fn read_exact_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadExactAt<'a>;
 }
 

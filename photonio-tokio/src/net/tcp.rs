@@ -1,4 +1,4 @@
-use std::{io::Result, net::SocketAddr};
+use std::{io::Result, net::SocketAddr, time::Duration};
 
 use tokio::net;
 
@@ -59,5 +59,21 @@ impl TcpStream {
 
     pub fn set_nodelay(&self, nodelay: bool) -> Result<()> {
         self.0.set_nodelay(nodelay)
+    }
+
+    pub fn read_timeout(&self) -> Result<Option<Duration>> {
+        unimplemented!()
+    }
+
+    pub fn set_read_timeout(&self, _: Option<Duration>) -> Result<()> {
+        unimplemented!()
+    }
+
+    pub fn write_timeout(&self) -> Result<Option<Duration>> {
+        unimplemented!()
+    }
+
+    pub fn set_write_timeout(&self, _: Option<Duration>) -> Result<()> {
+        unimplemented!()
     }
 }

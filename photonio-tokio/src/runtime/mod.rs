@@ -2,28 +2,31 @@ use std::io::Result;
 
 use tokio::runtime;
 
-pub struct Builder(runtime::Builder);
+use crate::task::JoinHandle;
 
-impl Builder {
-    pub fn new() -> Self {
-        let mut b = tokio::runtime::Builder::new_multi_thread();
-        b.enable_all();
-        Self(b)
-    }
-
-    pub fn num_threads(&mut self, num_threads: usize) -> &mut Self {
-        self.0.worker_threads(num_threads);
-        self
-    }
-
-    pub fn thread_stack_size(&mut self, thread_stack_size: usize) -> &mut Self {
-        self.0.thread_stack_size(thread_stack_size);
-        self
-    }
-
-    pub fn build(&mut self) -> Result<Runtime> {
-        self.0.build().map(Runtime)
-    }
-}
+mod builder;
+pub use builder::Builder;
 
 pub struct Runtime(runtime::Runtime);
+
+impl Runtime {
+    pub fn new() -> Result<Self> {
+        runtime::Runtime::new().map(Self)
+    }
+
+    pub fn block_on<F>(&self, future: F) -> F::Output
+    where
+        F: std::future::Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        self.0.block_on(future)
+    }
+
+    pub fn spawn<F>(&self, future: F) -> JoinHandle<F::Output>
+    where
+        F: std::future::Future + Send + 'static,
+        F::Output: Send + 'static,
+    {
+        JoinHandle::new(self.0.spawn(future))
+    }
+}

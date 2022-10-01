@@ -11,3 +11,4 @@ description = "A PhotonIO implementation based on Tokio."
 [dependencies]
 photonio-base = { version = "0.0.1", path = "../photonio-base" }
 tokio = { version = "1.21", features = ["full"] }
+futures = "0.3"

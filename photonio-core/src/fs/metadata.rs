@@ -2,9 +2,13 @@
 ///
 /// See [`std::fs::Metadata`] for more details.
 #[derive(Clone)]
-pub struct Metadata(pub(super) libc::statx);
+pub struct Metadata(libc::statx);
 
 impl Metadata {
+    pub(super) fn new(stat: libc::statx) -> Self {
+        Self(stat)
+    }
+
     /// See [`std::fs::Metadata::len`].
     pub fn len(&self) -> u64 {
         self.0.stx_size

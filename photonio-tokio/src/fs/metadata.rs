@@ -1,6 +1,10 @@
-pub struct Metadata(pub(super) std::fs::Metadata);
+pub struct Metadata(std::fs::Metadata);
 
 impl Metadata {
+    pub(super) fn new(metadata: std::fs::Metadata) -> Self {
+        Self(metadata)
+    }
+
     pub fn len(&self) -> u64 {
         self.0.len()
     }
@@ -14,6 +18,6 @@ impl Metadata {
     }
 
     pub fn is_symlink(&self) -> bool {
-        self.0.file_type().is_symlink()
+        self.0.is_symlink()
     }
 }

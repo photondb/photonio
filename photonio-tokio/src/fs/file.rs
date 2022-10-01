@@ -20,7 +20,7 @@ impl File {
     }
 
     pub async fn metadata(&self) -> Result<Metadata> {
-        self.0.metadata().await.map(Metadata)
+        self.0.metadata().await.map(Metadata::new)
     }
 
     pub async fn sync_all(&self) -> Result<()> {
@@ -44,7 +44,7 @@ impl Read for File {
 impl ReadAt for File {
     type ReadAt<'a> = impl Future<Output = Result<usize>> + 'a;
 
-    // FIXME: Makes it asynchronous when Tokio supports positional reads.
+    // FIXME: Make it asynchronous when Tokio supports positional reads.
     fn read_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadAt<'a> {
         use std::os::unix::{
             fs::FileExt,
@@ -68,7 +68,7 @@ impl Write for File {
 impl WriteAt for File {
     type WriteAt<'a> = impl Future<Output = Result<usize>> + 'a;
 
-    // FIXME: Makes it asynchronous when Tokio supports positional writes.
+    // FIXME: Make it asynchronous when Tokio supports positional writes.
     fn write_at<'a>(&'a self, buf: &'a [u8], pos: u64) -> Self::WriteAt<'a> {
         use std::os::unix::{
             fs::FileExt,
