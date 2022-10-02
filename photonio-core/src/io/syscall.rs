@@ -5,7 +5,10 @@ use std::{
     future::Future,
     io::{Error, ErrorKind, Result},
     mem,
-    os::unix::{ffi::OsStrExt, io::RawFd},
+    os::unix::{
+        ffi::OsStrExt,
+        io::{AsRawFd, BorrowedFd, FromRawFd, OwnedFd},
+    },
     path::Path,
 };
 
@@ -14,52 +17,12 @@ use socket2::SockAddr;
 
 use super::submit;
 
-/// See `man read.2` for more details.
-pub fn read<'a>(fd: RawFd, buf: &'a mut [u8]) -> impl Future<Output = Result<usize>> + 'a {
-    async move {
-        let sqe = opcode::Read::new(types::Fd(fd), buf.as_mut_ptr(), buf.len() as _).build();
-        submit(sqe)?.await.map(|n| n as _)
-    }
-}
-
-/// See `man pread.2` for more details.
-pub fn pread<'a>(
-    fd: RawFd,
-    buf: &'a mut [u8],
-    pos: u64,
-) -> impl Future<Output = Result<usize>> + 'a {
-    async move {
-        let sqe = opcode::Read::new(types::Fd(fd), buf.as_mut_ptr(), buf.len() as _)
-            .offset(pos as _)
-            .build();
-        submit(sqe)?.await.map(|n| n as _)
-    }
-}
-
-/// See `man write.2` for more details.
-pub fn write<'a>(fd: RawFd, buf: &'a [u8]) -> impl Future<Output = Result<usize>> + 'a {
-    async move {
-        let sqe = opcode::Write::new(types::Fd(fd), buf.as_ptr(), buf.len() as _).build();
-        submit(sqe)?.await.map(|n| n as _)
-    }
-}
-
-/// See `man pwrite.2` for more details.
-pub fn pwrite<'a>(fd: RawFd, buf: &'a [u8], pos: u64) -> impl Future<Output = Result<usize>> + 'a {
-    async move {
-        let sqe = opcode::Write::new(types::Fd(fd), buf.as_ptr(), buf.len() as _)
-            .offset(pos as _)
-            .build();
-        submit(sqe)?.await.map(|n| n as _)
-    }
-}
-
-/// See `man open.2` for more details.
+/// See also `man open.2`.
 pub fn open(
     path: &Path,
     flags: libc::c_int,
     mode: libc::mode_t,
-) -> impl Future<Output = Result<RawFd>> {
+) -> impl Future<Output = Result<OwnedFd>> {
     let path = new_path_str(path);
     async move {
         let path = path?;
@@ -67,53 +30,103 @@ pub fn open(
             .flags(flags)
             .mode(mode)
             .build();
-        submit(sqe)?.await.map(|fd| fd as _)
+        submit(sqe)?
+            .await
+            .map(|fd| unsafe { OwnedFd::from_raw_fd(fd as _) })
     }
 }
 
-/// See `man close.2` for more details.
+/// See also `man close.2`.
 #[allow(dead_code)]
-pub fn close(fd: RawFd) -> impl Future<Output = Result<()>> {
+pub fn close(fd: OwnedFd) -> impl Future<Output = Result<()>> {
     async move {
-        let sqe = opcode::Close::new(types::Fd(fd)).build();
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Close::new(fd).build();
         submit(sqe)?.await.map(|_| ())
     }
 }
 
-/// See `man fstat.2` for more details.
-pub fn fstat(fd: RawFd) -> impl Future<Output = Result<libc::statx>> {
+/// See also `man read.2`.
+pub fn read<'a>(fd: BorrowedFd<'a>, buf: &'a mut [u8]) -> impl Future<Output = Result<usize>> + 'a {
     async move {
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Read::new(fd, buf.as_mut_ptr(), buf.len() as _).build();
+        submit(sqe)?.await.map(|n| n as _)
+    }
+}
+
+/// See also `man pread.2`.
+pub fn pread<'a>(
+    fd: BorrowedFd<'a>,
+    buf: &'a mut [u8],
+    pos: u64,
+) -> impl Future<Output = Result<usize>> + 'a {
+    async move {
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Read::new(fd, buf.as_mut_ptr(), buf.len() as _)
+            .offset(pos as _)
+            .build();
+        submit(sqe)?.await.map(|n| n as _)
+    }
+}
+
+/// See also `man write.2`.
+pub fn write<'a>(fd: BorrowedFd<'a>, buf: &'a [u8]) -> impl Future<Output = Result<usize>> + 'a {
+    async move {
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Write::new(fd, buf.as_ptr(), buf.len() as _).build();
+        submit(sqe)?.await.map(|n| n as _)
+    }
+}
+
+/// See also `man pwrite.2`.
+pub fn pwrite<'a>(
+    fd: BorrowedFd<'a>,
+    buf: &'a [u8],
+    pos: u64,
+) -> impl Future<Output = Result<usize>> + 'a {
+    async move {
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Write::new(fd, buf.as_ptr(), buf.len() as _)
+            .offset(pos as _)
+            .build();
+        submit(sqe)?.await.map(|n| n as _)
+    }
+}
+
+/// See also `man fstat.2`.
+pub fn fstat<'a>(fd: BorrowedFd<'a>) -> impl Future<Output = Result<libc::statx>> + 'a {
+    async move {
+        let fd = types::Fd(fd.as_raw_fd());
         let mut stat = unsafe { mem::zeroed() };
-        let sqe = opcode::Statx::new(
-            types::Fd(fd),
-            std::ptr::null(),
-            &mut stat as *mut _ as *mut _,
-        )
-        .mask(libc::STATX_ALL)
-        .build();
+        let sqe = opcode::Statx::new(fd, std::ptr::null(), &mut stat as *mut _ as *mut _)
+            .mask(libc::STATX_ALL)
+            .build();
         submit(sqe)?.await.map(|_| stat)
     }
 }
 
-/// See `man fsync.2` for more details.
-pub fn fsync(fd: RawFd) -> impl Future<Output = Result<()>> {
+/// See also `man fsync.2`.
+pub fn fsync<'a>(fd: BorrowedFd<'a>) -> impl Future<Output = Result<()>> + 'a {
     async move {
-        let sqe = opcode::Fsync::new(types::Fd(fd)).build();
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Fsync::new(fd).build();
         submit(sqe)?.await.map(|_| ())
     }
 }
 
-/// See `man fdatasync.2` for more details.
-pub fn fdatasync(fd: RawFd) -> impl Future<Output = Result<()>> {
+/// See also `man fdatasync.2`.
+pub fn fdatasync<'a>(fd: BorrowedFd<'a>) -> impl Future<Output = Result<()>> + 'a {
     async move {
-        let sqe = opcode::Fsync::new(types::Fd(fd))
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Fsync::new(fd)
             .flags(types::FsyncFlags::DATASYNC)
             .build();
         submit(sqe)?.await.map(|_| ())
     }
 }
 
-/// See `man mkdir.2` for more details.
+/// See also `man mkdir.2`.
 pub fn mkdir(path: &Path, mode: libc::mode_t) -> impl Future<Output = Result<()>> {
     let path = new_path_str(path);
     async move {
@@ -125,7 +138,7 @@ pub fn mkdir(path: &Path, mode: libc::mode_t) -> impl Future<Output = Result<()>
     }
 }
 
-/// See `man rmdir.2` for more details.
+/// See also `man rmdir.2`.
 pub fn rmdir(path: &Path) -> impl Future<Output = Result<()>> {
     let path = new_path_str(path);
     async move {
@@ -137,7 +150,7 @@ pub fn rmdir(path: &Path) -> impl Future<Output = Result<()>> {
     }
 }
 
-/// See `man unlink.2` for more details.
+/// See also `man unlink.2`.
 pub fn unlink(path: &Path) -> impl Future<Output = Result<()>> {
     let path = new_path_str(path);
     async move {
@@ -148,7 +161,7 @@ pub fn unlink(path: &Path) -> impl Future<Output = Result<()>> {
     }
 }
 
-/// See `man rename.2` for more details.
+/// See also `man rename.2`.
 pub fn rename(oldpath: &Path, newpath: &Path) -> impl Future<Output = Result<()>> {
     let oldpath = new_path_str(oldpath);
     let newpath = new_path_str(newpath);
@@ -166,13 +179,13 @@ pub fn rename(oldpath: &Path, newpath: &Path) -> impl Future<Output = Result<()>
     }
 }
 
-/// See `man accept.2` for more details.
-pub fn accept(fd: RawFd) -> impl Future<Output = Result<(RawFd, SockAddr)>> {
+/// See also `man accept.2`.
+pub fn accept<'a>(fd: BorrowedFd<'a>) -> impl Future<Output = Result<(OwnedFd, SockAddr)>> + 'a {
     async move {
+        let fd = types::Fd(fd.as_raw_fd());
         let mut addr = unsafe { mem::zeroed() };
         let mut addr_len = mem::size_of::<libc::sockaddr_storage>() as libc::socklen_t;
-        let sqe = opcode::Accept::new(types::Fd(fd), &mut addr as *mut _ as *mut _, &mut addr_len)
-            .build();
+        let sqe = opcode::Accept::new(fd, &mut addr as *mut _ as *mut _, &mut addr_len).build();
         let (_, sock_addr) = unsafe {
             SockAddr::init(|a, l| {
                 *a = addr;
@@ -181,22 +194,27 @@ pub fn accept(fd: RawFd) -> impl Future<Output = Result<(RawFd, SockAddr)>> {
             })
             .unwrap()
         };
-        submit(sqe)?.await.map(|fd| (fd as _, sock_addr))
+        submit(sqe)?.await.map(|fd| {
+            let conn = unsafe { OwnedFd::from_raw_fd(fd as _) };
+            (conn, sock_addr)
+        })
     }
 }
 
-/// See `man connect.2` for more details.
-pub fn connect(fd: RawFd, addr: SockAddr) -> impl Future<Output = Result<()>> {
+/// See also `man connect.2`.
+pub fn connect<'a>(fd: BorrowedFd<'a>, addr: SockAddr) -> impl Future<Output = Result<()>> + 'a {
     async move {
-        let sqe = opcode::Connect::new(types::Fd(fd), addr.as_ptr(), addr.len()).build();
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Connect::new(fd, addr.as_ptr(), addr.len()).build();
         submit(sqe)?.await.map(|_| ())
     }
 }
 
-/// See `man shutdown.2` for more details.
-pub fn shutdown(fd: RawFd, how: libc::c_int) -> impl Future<Output = Result<()>> {
+/// See also `man shutdown.2`.
+pub fn shutdown<'a>(fd: BorrowedFd<'a>, how: libc::c_int) -> impl Future<Output = Result<()>> + 'a {
     async move {
-        let sqe = opcode::Shutdown::new(types::Fd(fd), how).build();
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Shutdown::new(fd, how).build();
         submit(sqe)?.await.map(|_| ())
     }
 }

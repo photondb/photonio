@@ -4,9 +4,8 @@
 
 use std::{
     future::Future,
-    pin::Pin,
     ptr::NonNull,
-    task::{Context, Poll, Waker},
+    task::{Poll, Waker},
 };
 
 pub use crate::runtime::spawn;
@@ -15,17 +14,20 @@ mod raw;
 use raw::RawTask;
 
 mod join;
-pub use join::JoinHandle;
+pub use join::{JoinError, JoinHandle};
+
+mod yield_now;
+pub use yield_now::yield_now;
 
 mod schedule;
 pub(crate) use schedule::Schedule;
 
-/// A handle to a task.
-pub struct Task(NonNull<RawTask>);
-
 /// A unique identifier for a task.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct TaskId(u64);
+
+/// A handle to a task.
+pub struct Task(NonNull<RawTask>);
 
 impl Task {
     pub(crate) fn new<F, S>(id: u64, future: F, schedule: S) -> (Self, JoinHandle<F::Output>)
@@ -48,7 +50,7 @@ impl Task {
         unsafe { self.raw().poll(self.0) }
     }
 
-    pub(super) fn join<T>(&self, waker: &Waker) -> Poll<T> {
+    pub(super) fn join<T>(&self, waker: &Waker) -> Poll<Result<T, JoinError>> {
         unsafe { self.raw().join(self.0, waker) }
     }
 
@@ -75,28 +77,4 @@ impl Clone for Task {
     fn clone(&self) -> Self {
         unsafe { Self(self.raw().clone(self.0)) }
     }
-}
-
-#[derive(Default)]
-struct Yield {
-    yielded: bool,
-}
-
-impl Future for Yield {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if self.yielded {
-            Poll::Ready(())
-        } else {
-            self.yielded = true;
-            cx.waker().wake_by_ref();
-            Poll::Pending
-        }
-    }
-}
-
-/// Yields execution back to the current runtime.
-pub async fn yield_now() {
-    Yield::default().await
 }

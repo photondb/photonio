@@ -7,6 +7,7 @@ use super::{Runtime, WorkerPool};
 pub struct Builder {
     pub(super) num_threads: Option<usize>,
     pub(super) thread_stack_size: Option<usize>,
+    pub(super) event_interval: Option<usize>,
 }
 
 impl Builder {
@@ -24,6 +25,12 @@ impl Builder {
     /// Sets the stack size for each thread.
     pub fn thread_stack_size(mut self, thread_stack_size: usize) -> Self {
         self.thread_stack_size = Some(thread_stack_size);
+        self
+    }
+
+    /// Sets the number of tasks to poll per tick.
+    pub fn event_interval(mut self, event_interval: usize) -> Self {
+        self.event_interval = Some(event_interval);
         self
     }
 

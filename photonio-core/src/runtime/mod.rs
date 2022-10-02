@@ -31,8 +31,9 @@ impl Runtime {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
-        let handle = self.spawn(future);
-        CURRENT.set(&self.0, || block_on(handle))
+        CURRENT
+            .set(&self.0, || block_on(self.spawn(future)))
+            .unwrap()
     }
 
     /// Spawns a future onto the runtime.

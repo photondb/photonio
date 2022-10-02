@@ -7,7 +7,7 @@ use std::{
 use io_uring::{opcode, squeue, types, IoUring};
 use scoped_tls::scoped_thread_local;
 
-use super::{Op, OpTable};
+use super::{syscall_result, Op, OpTable};
 
 pub struct Driver {
     inner: RefCell<Inner>,
@@ -136,7 +136,7 @@ impl Inner {
     }
 }
 
-struct Unpark {
+pub struct Unpark {
     fd: OwnedFd,
     buf: [u8; 8],
     is_registered: bool,
@@ -180,14 +180,6 @@ impl Unpark {
 
     fn complete(&mut self) {
         self.is_registered = false;
-    }
-}
-
-fn syscall_result(res: i32) -> Result<u32> {
-    if res >= 0 {
-        Ok(res as u32)
-    } else {
-        Err(Error::from_raw_os_error(-res))
     }
 }
 

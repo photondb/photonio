@@ -7,6 +7,8 @@ use std::{
 
 use super::Task;
 
+/// An error returned from joining a task.
+#[derive(Debug)]
 pub struct JoinError;
 
 /// A handle to await a task.
@@ -36,10 +38,9 @@ impl<T> Drop for JoinHandle<T> {
 }
 
 impl<T> Future for JoinHandle<T> {
-    type Output = T;
+    type Output = Result<T, JoinError>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        let poll: Poll<T> = self.task.join(cx.waker());
-        poll
+        self.task.join(cx.waker())
     }
 }
