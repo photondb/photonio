@@ -4,7 +4,7 @@
 
 use std::{io::Result, path::Path};
 
-use crate::io::syscall;
+use crate::runtime::syscall;
 
 mod file;
 pub use file::{File, OpenOptions};

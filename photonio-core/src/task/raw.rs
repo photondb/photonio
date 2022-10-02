@@ -81,6 +81,7 @@ where
     S: Schedule,
 {
     head: RawTask,
+    // TODO: optimize this lock
     core: Mutex<Core<F, S>>,
 }
 

@@ -1,76 +1,36 @@
 use std::{
-    cell::RefCell,
     io::{Error, ErrorKind, Result},
     os::unix::io::{AsRawFd, FromRawFd, OwnedFd, RawFd},
 };
 
 use io_uring::{opcode, squeue, types, IoUring};
-use scoped_tls::scoped_thread_local;
 
-use super::{syscall_result, Op, OpTable};
+use super::op::{OpHandle, OpTable};
 
-pub struct Driver {
-    inner: RefCell<Inner>,
+pub(crate) struct Driver {
+    io: IoUring,
+    table: OpTable,
 }
 
 impl Driver {
     pub fn new() -> Result<Self> {
-        let inner = Inner::new()?;
-        Ok(Self {
-            inner: RefCell::new(inner),
-        })
-    }
-
-    pub fn with<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce() -> R,
-    {
-        CURRENT.set(&self.inner, f)
-    }
-
-    pub fn park(&self) -> Result<()> {
-        let mut inner = self.inner.borrow_mut();
-        inner.park()
-    }
-
-    pub fn drive(&self) -> Result<()> {
-        let mut inner = self.inner.borrow_mut();
-        inner.drive()
-    }
-}
-
-struct Inner {
-    io: IoUring,
-    ops: OpTable,
-    unpark: Unpark,
-}
-
-impl Inner {
-    fn new() -> Result<Self> {
         let io = IoUring::new(1024)?;
-        let unpark = Unpark::new()?;
         Ok(Self {
             io,
-            ops: OpTable::new(),
-            unpark,
+            table: OpTable::new(),
         })
     }
 
-    fn push(&mut self, mut sqe: squeue::Entry) -> Result<Op> {
-        let op = self.ops.insert();
-        sqe = sqe.user_data(op.index() as _);
-        self.push_sqe(sqe)?;
-        Ok(op)
-    }
-
-    fn push_sqe(&mut self, sqe: squeue::Entry) -> Result<()> {
+    pub fn push(&mut self, op: squeue::Entry) -> Result<OpHandle> {
+        let handle = self.table.insert();
+        let sqe = op.user_data(handle.index() as _);
         if self.io.submission().is_full() {
             self.submit()?;
         }
         unsafe {
             self.io.submission().push(&sqe).unwrap();
         }
-        Ok(())
+        Ok(handle)
     }
 
     fn pull(&mut self) {
@@ -82,17 +42,13 @@ impl Inner {
             let result = syscall_result(cqe.result());
             if token == Unpark::TOKEN {
                 result.unwrap();
-                self.unpark.complete();
             } else {
-                self.ops.complete(token as _, result);
+                self.table.complete(token as _, result);
             }
         }
     }
 
     fn park(&mut self) -> Result<()> {
-        if let Some(sqe) = self.unpark.register() {
-            self.push_sqe(sqe)?;
-        }
         self.submit_and_wait()?;
         self.pull();
         Ok(())
@@ -183,8 +139,10 @@ impl Unpark {
     }
 }
 
-scoped_thread_local!(static CURRENT: RefCell<Inner>);
-
-pub(crate) fn submit(sqe: squeue::Entry) -> Result<Op> {
-    CURRENT.with(|inner| inner.borrow_mut().push(sqe))
+fn syscall_result(res: i32) -> Result<u32> {
+    if res >= 0 {
+        Ok(res as u32)
+    } else {
+        Err(Error::from_raw_os_error(-res))
+    }
 }

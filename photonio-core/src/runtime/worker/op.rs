@@ -9,52 +9,6 @@ use std::{
 
 use slab::Slab;
 
-pub(crate) struct Op {
-    table: OpTable,
-    index: usize,
-    is_finished: bool,
-}
-
-impl Op {
-    fn new(table: OpTable, index: usize) -> Self {
-        Self {
-            table,
-            index,
-            is_finished: false,
-        }
-    }
-
-    pub fn index(&self) -> usize {
-        self.index
-    }
-}
-
-impl Drop for Op {
-    fn drop(&mut self) {
-        assert!(self.is_finished);
-    }
-}
-
-impl Future for Op {
-    type Output = Result<u32>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        let index = self.index;
-        self.table.poll(index, cx.waker()).map_ok(|v| {
-            self.is_finished = true;
-            v
-        })
-    }
-}
-
-#[derive(Default)]
-enum OpState {
-    #[default]
-    Init,
-    Polled(Waker),
-    Completed(Result<u32>),
-}
-
 #[derive(Clone, Default)]
 pub(super) struct OpTable(Arc<Mutex<Slab<OpState>>>);
 
@@ -63,10 +17,10 @@ impl OpTable {
         Self::default()
     }
 
-    pub fn insert(&mut self) -> Op {
+    pub fn insert(&mut self) -> OpHandle {
         let mut table = self.0.lock().unwrap();
         let index = table.insert(OpState::default());
-        Op::new(self.clone(), index)
+        OpHandle::new(self.clone(), index)
     }
 
     fn poll(&mut self, index: usize, waker: &Waker) -> Poll<Result<u32>> {
@@ -103,5 +57,51 @@ impl OpTable {
             }
             OpState::Completed(..) => unreachable!(),
         }
+    }
+}
+
+#[derive(Default)]
+enum OpState {
+    #[default]
+    Init,
+    Polled(Waker),
+    Completed(Result<u32>),
+}
+
+pub(crate) struct OpHandle {
+    table: OpTable,
+    index: usize,
+    is_finished: bool,
+}
+
+impl OpHandle {
+    fn new(table: OpTable, index: usize) -> Self {
+        Self {
+            table,
+            index,
+            is_finished: false,
+        }
+    }
+
+    pub fn index(&self) -> usize {
+        self.index
+    }
+}
+
+impl Drop for OpHandle {
+    fn drop(&mut self) {
+        assert!(self.is_finished);
+    }
+}
+
+impl Future for OpHandle {
+    type Output = Result<u32>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
+        let index = self.index;
+        self.table.poll(index, cx.waker()).map_ok(|v| {
+            self.is_finished = true;
+            v
+        })
     }
 }

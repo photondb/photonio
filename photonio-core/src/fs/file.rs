@@ -1,12 +1,15 @@
 use std::{
     future::Future,
     io::Result,
-    os::unix::io::{AsRawFd, BorrowedFd, OwnedFd},
+    os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd},
     path::Path,
 };
 
 use super::Metadata;
-use crate::io::{syscall, Read, ReadAt, Write, WriteAt};
+use crate::{
+    io::{Read, ReadAt, Write, WriteAt},
+    runtime::syscall,
+};
 
 /// A reference to an open file.
 ///
@@ -32,23 +35,47 @@ impl File {
 
     /// See also [`std::fs::File::metadata`].
     pub async fn metadata(&self) -> Result<Metadata> {
-        syscall::fstat(self.borrow_fd()).await.map(Metadata::new)
+        syscall::fstat(self.fd()).await.map(Metadata::new)
     }
 
     /// See also [`std::fs::File::sync_all`].
     pub async fn sync_all(&self) -> Result<()> {
-        syscall::fsync(self.borrow_fd()).await
+        syscall::fsync(self.fd()).await
     }
 
     /// See also [`std::fs::File::sync_data`].
     pub async fn sync_data(&self) -> Result<()> {
-        syscall::fdatasync(self.borrow_fd()).await
+        syscall::fdatasync(self.fd()).await
     }
 }
 
 impl File {
-    fn borrow_fd(&self) -> BorrowedFd<'_> {
-        unsafe { BorrowedFd::borrow_raw(self.0.as_raw_fd()) }
+    fn fd(&self) -> BorrowedFd<'_> {
+        self.0.as_fd()
+    }
+}
+
+impl AsFd for File {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.0.as_fd()
+    }
+}
+
+impl AsRawFd for File {
+    fn as_raw_fd(&self) -> RawFd {
+        self.0.as_raw_fd()
+    }
+}
+
+impl FromRawFd for File {
+    unsafe fn from_raw_fd(fd: RawFd) -> Self {
+        Self(OwnedFd::from_raw_fd(fd))
+    }
+}
+
+impl IntoRawFd for File {
+    fn into_raw_fd(self) -> RawFd {
+        self.0.into_raw_fd()
     }
 }
 
@@ -56,7 +83,7 @@ impl Read for File {
     type Read<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Self::Read<'a> {
-        syscall::read(self.borrow_fd(), buf)
+        syscall::read(self.fd(), buf)
     }
 }
 
@@ -64,7 +91,7 @@ impl ReadAt for File {
     type ReadAt<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn read_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadAt<'a> {
-        syscall::pread(self.borrow_fd(), buf, pos)
+        syscall::pread(self.fd(), buf, pos)
     }
 }
 
@@ -72,7 +99,7 @@ impl Write for File {
     type Write<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn write<'a>(&'a mut self, buf: &'a [u8]) -> Self::Write<'a> {
-        syscall::write(self.borrow_fd(), buf)
+        syscall::write(self.fd(), buf)
     }
 }
 
@@ -80,7 +107,7 @@ impl WriteAt for File {
     type WriteAt<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn write_at<'a>(&'a self, buf: &'a [u8], pos: u64) -> Self::WriteAt<'a> {
-        syscall::pwrite(self.borrow_fd(), buf, pos)
+        syscall::pwrite(self.0.as_fd(), buf, pos)
     }
 }
 

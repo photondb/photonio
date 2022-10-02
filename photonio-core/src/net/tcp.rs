@@ -2,13 +2,16 @@ use std::{
     future::Future,
     io::{Error, ErrorKind, Result},
     net::{Shutdown, SocketAddr, ToSocketAddrs},
-    os::unix::io::{AsRawFd, BorrowedFd, FromRawFd, IntoRawFd},
+    os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd},
     time::Duration,
 };
 
 use socket2::{Domain, SockAddr, Socket, Type};
 
-use crate::io::{syscall, Read, Write};
+use crate::{
+    io::{Read, Write},
+    runtime::syscall,
+};
 
 /// A TCP socket listening for connections.
 ///
@@ -31,10 +34,10 @@ impl TcpListener {
 
     /// See also [`std::net::TcpListener::accept`].
     pub async fn accept(&self) -> Result<(TcpStream, SocketAddr)> {
-        let (fd, addr) = syscall::accept(self.borrow_fd()).await?;
-        let socket = unsafe { Socket::from_raw_fd(fd.into_raw_fd()) };
+        let (fd, addr) = syscall::accept(self.fd()).await?;
+        let stream = unsafe { TcpStream::from_raw_fd(fd.into_raw_fd()) };
         let socket_addr = to_socket_addr(addr)?;
-        Ok((TcpStream(socket), socket_addr))
+        Ok((stream, socket_addr))
     }
 
     /// See also [`std::net::TcpListener::local_addr`].
@@ -55,8 +58,32 @@ impl TcpListener {
 }
 
 impl TcpListener {
-    fn borrow_fd(&self) -> BorrowedFd<'_> {
+    fn fd(&self) -> BorrowedFd<'_> {
+        self.as_fd()
+    }
+}
+
+impl AsFd for TcpListener {
+    fn as_fd(&self) -> BorrowedFd<'_> {
         unsafe { BorrowedFd::borrow_raw(self.0.as_raw_fd()) }
+    }
+}
+
+impl AsRawFd for TcpListener {
+    fn as_raw_fd(&self) -> RawFd {
+        self.0.as_raw_fd()
+    }
+}
+
+impl FromRawFd for TcpListener {
+    unsafe fn from_raw_fd(fd: RawFd) -> Self {
+        Self(Socket::from_raw_fd(fd))
+    }
+}
+
+impl IntoRawFd for TcpListener {
+    fn into_raw_fd(self) -> RawFd {
+        self.0.into_raw_fd()
     }
 }
 
@@ -70,9 +97,9 @@ impl TcpStream {
     /// See also [`std::net::TcpStream::connect`].
     pub async fn connect(addr: SocketAddr) -> Result<Self> {
         let socket = Socket::new(Domain::for_address(addr), Type::STREAM, None)?;
-        let fd = unsafe { BorrowedFd::borrow_raw(socket.as_raw_fd()) };
-        syscall::connect(fd, addr.into()).await?;
-        Ok(Self(socket))
+        let stream = Self(socket);
+        syscall::connect(stream.fd(), addr.into()).await?;
+        Ok(stream)
     }
 
     /// See also [`std::net::TcpStream::shutdown`].
@@ -82,7 +109,7 @@ impl TcpStream {
             Shutdown::Read => libc::SHUT_RD,
             Shutdown::Write => libc::SHUT_WR,
         };
-        syscall::shutdown(self.borrow_fd(), flags).await.map(|_| ())
+        syscall::shutdown(self.fd(), flags).await.map(|_| ())
     }
 
     /// See also [`std::net::TcpStream::local_addr`].
@@ -139,8 +166,32 @@ impl TcpStream {
 }
 
 impl TcpStream {
-    fn borrow_fd(&self) -> BorrowedFd<'_> {
+    fn fd(&self) -> BorrowedFd<'_> {
+        self.as_fd()
+    }
+}
+
+impl AsFd for TcpStream {
+    fn as_fd(&self) -> BorrowedFd<'_> {
         unsafe { BorrowedFd::borrow_raw(self.0.as_raw_fd()) }
+    }
+}
+
+impl AsRawFd for TcpStream {
+    fn as_raw_fd(&self) -> RawFd {
+        self.0.as_raw_fd()
+    }
+}
+
+impl FromRawFd for TcpStream {
+    unsafe fn from_raw_fd(fd: RawFd) -> Self {
+        Self(Socket::from_raw_fd(fd))
+    }
+}
+
+impl IntoRawFd for TcpStream {
+    fn into_raw_fd(self) -> RawFd {
+        self.0.into_raw_fd()
     }
 }
 
@@ -148,7 +199,7 @@ impl Read for TcpStream {
     type Read<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Self::Read<'a> {
-        syscall::read(self.borrow_fd(), buf)
+        syscall::read(self.fd(), buf)
     }
 }
 
@@ -156,7 +207,7 @@ impl Write for TcpStream {
     type Write<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn write<'a>(&'a mut self, buf: &'a [u8]) -> Self::Write<'a> {
-        syscall::write(self.borrow_fd(), buf)
+        syscall::write(self.fd(), buf)
     }
 }
 

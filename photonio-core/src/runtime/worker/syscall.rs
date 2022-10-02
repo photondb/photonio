@@ -15,7 +15,7 @@ use std::{
 use io_uring::{opcode, types};
 use socket2::SockAddr;
 
-use super::submit;
+use super::context::submit;
 
 /// See also `man open.2`.
 pub fn open(

@@ -10,19 +10,19 @@ use crate::task::JoinHandle;
 mod builder;
 pub use builder::Builder;
 
-mod worker_pool;
-use worker_pool::WorkerPool;
+mod worker;
+pub(crate) use worker::syscall;
 
-mod worker_thread;
-use worker_thread::WorkerThread;
+mod executor;
+use executor::Executor;
 
 /// The PhotonIO runtime.
-pub struct Runtime(Arc<WorkerPool>);
+pub struct Runtime(Arc<Executor>);
 
 impl Runtime {
     /// Creates a new runtime with default options.
     pub fn new() -> Result<Self> {
-        Builder::default().build()
+        Builder::new().build()
     }
 
     /// Runs a future to completion.
@@ -46,7 +46,7 @@ impl Runtime {
     }
 }
 
-scoped_thread_local!(static CURRENT: Arc<WorkerPool>);
+scoped_thread_local!(static CURRENT: Arc<Executor>);
 
 /// Spawns a task onto the current runtime.
 pub fn spawn<F>(future: F) -> JoinHandle<F::Output>
@@ -54,5 +54,5 @@ where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
 {
-    CURRENT.with(|pool| pool.spawn(future))
+    CURRENT.with(|exec| exec.spawn(future))
 }
