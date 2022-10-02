@@ -1,36 +1,50 @@
-use std::{future::Future, io::Result, thread};
+use std::{io::Result, sync::mpsc, thread};
 
-use crate::task::JoinHandle;
+use crate::task::Task;
 
-mod context;
 mod driver;
 mod op;
+
+mod context;
+pub(super) use context::Shared;
 
 pub(crate) mod syscall;
 
 pub(super) struct Worker {
-    thread: thread::JoinHandle<()>,
+    tx: Sender,
 }
 
 impl Worker {
-    pub fn new(
+    pub fn spawn(
         id: usize,
+        shared: Shared,
         thread_name: String,
         thread_stack_size: usize,
         event_interval: usize,
     ) -> Result<Self> {
-        let thread = thread::Builder::new()
+        let (tx, rx) = mpsc::channel();
+        thread::Builder::new()
             .name(thread_name)
             .stack_size(thread_stack_size)
-            .spawn(move || context::run(id, event_interval).unwrap())?;
-        Ok(Self { thread })
+            .spawn(move || context::run(id, rx, shared, event_interval).unwrap())?;
+        Ok(Self { tx })
     }
 
-    pub fn spawn<F>(&self, id: u64, future: F) -> JoinHandle<F::Output>
-    where
-        F: Future + Send + 'static,
-        F::Output: Send + 'static,
-    {
-        todo!()
+    pub fn schedule(&self, task: Task) {
+        self.tx.send(Message::Schedule(task)).unwrap();
     }
 }
+
+impl Drop for Worker {
+    fn drop(&mut self) {
+        self.tx.send(Message::Shutdown).unwrap();
+    }
+}
+
+enum Message {
+    Shutdown,
+    Schedule(Task),
+}
+
+type Sender = mpsc::Sender<Message>;
+type Receiver = mpsc::Receiver<Message>;

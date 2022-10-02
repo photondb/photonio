@@ -21,6 +21,18 @@ impl Driver {
         })
     }
 
+    pub fn tick(&mut self) -> Result<()> {
+        self.submit()?;
+        self.pull();
+        Ok(())
+    }
+
+    pub fn park(&mut self) -> Result<bool> {
+        self.submit_and_wait()?;
+        self.pull();
+        Ok(true)
+    }
+
     pub fn push(&mut self, op: squeue::Entry) -> Result<OpHandle> {
         let handle = self.table.insert();
         let sqe = op.user_data(handle.index() as _);
@@ -46,18 +58,6 @@ impl Driver {
                 self.table.complete(token as _, result);
             }
         }
-    }
-
-    fn park(&mut self) -> Result<()> {
-        self.submit_and_wait()?;
-        self.pull();
-        Ok(())
-    }
-
-    fn drive(&mut self) -> Result<()> {
-        self.submit()?;
-        self.pull();
-        Ok(())
     }
 
     fn submit(&mut self) -> Result<()> {

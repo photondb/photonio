@@ -46,54 +46,6 @@ pub fn close(fd: OwnedFd) -> impl Future<Output = Result<()>> {
     }
 }
 
-/// See also `man read.2`.
-pub fn read<'a>(fd: BorrowedFd<'a>, buf: &'a mut [u8]) -> impl Future<Output = Result<usize>> + 'a {
-    async move {
-        let fd = types::Fd(fd.as_raw_fd());
-        let sqe = opcode::Read::new(fd, buf.as_mut_ptr(), buf.len() as _).build();
-        submit(sqe)?.await.map(|n| n as _)
-    }
-}
-
-/// See also `man pread.2`.
-pub fn pread<'a>(
-    fd: BorrowedFd<'a>,
-    buf: &'a mut [u8],
-    pos: u64,
-) -> impl Future<Output = Result<usize>> + 'a {
-    async move {
-        let fd = types::Fd(fd.as_raw_fd());
-        let sqe = opcode::Read::new(fd, buf.as_mut_ptr(), buf.len() as _)
-            .offset(pos as _)
-            .build();
-        submit(sqe)?.await.map(|n| n as _)
-    }
-}
-
-/// See also `man write.2`.
-pub fn write<'a>(fd: BorrowedFd<'a>, buf: &'a [u8]) -> impl Future<Output = Result<usize>> + 'a {
-    async move {
-        let fd = types::Fd(fd.as_raw_fd());
-        let sqe = opcode::Write::new(fd, buf.as_ptr(), buf.len() as _).build();
-        submit(sqe)?.await.map(|n| n as _)
-    }
-}
-
-/// See also `man pwrite.2`.
-pub fn pwrite<'a>(
-    fd: BorrowedFd<'a>,
-    buf: &'a [u8],
-    pos: u64,
-) -> impl Future<Output = Result<usize>> + 'a {
-    async move {
-        let fd = types::Fd(fd.as_raw_fd());
-        let sqe = opcode::Write::new(fd, buf.as_ptr(), buf.len() as _)
-            .offset(pos as _)
-            .build();
-        submit(sqe)?.await.map(|n| n as _)
-    }
-}
-
 /// See also `man fstat.2`.
 pub fn fstat<'a>(fd: BorrowedFd<'a>) -> impl Future<Output = Result<libc::statx>> + 'a {
     async move {
@@ -216,6 +168,54 @@ pub fn shutdown<'a>(fd: BorrowedFd<'a>, how: libc::c_int) -> impl Future<Output 
         let fd = types::Fd(fd.as_raw_fd());
         let sqe = opcode::Shutdown::new(fd, how).build();
         submit(sqe)?.await.map(|_| ())
+    }
+}
+
+/// See also `man read.2`.
+pub fn read<'a>(fd: BorrowedFd<'a>, buf: &'a mut [u8]) -> impl Future<Output = Result<usize>> + 'a {
+    async move {
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Read::new(fd, buf.as_mut_ptr(), buf.len() as _).build();
+        submit(sqe)?.await.map(|n| n as _)
+    }
+}
+
+/// See also `man pread.2`.
+pub fn pread<'a>(
+    fd: BorrowedFd<'a>,
+    buf: &'a mut [u8],
+    pos: u64,
+) -> impl Future<Output = Result<usize>> + 'a {
+    async move {
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Read::new(fd, buf.as_mut_ptr(), buf.len() as _)
+            .offset(pos as _)
+            .build();
+        submit(sqe)?.await.map(|n| n as _)
+    }
+}
+
+/// See also `man write.2`.
+pub fn write<'a>(fd: BorrowedFd<'a>, buf: &'a [u8]) -> impl Future<Output = Result<usize>> + 'a {
+    async move {
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Write::new(fd, buf.as_ptr(), buf.len() as _).build();
+        submit(sqe)?.await.map(|n| n as _)
+    }
+}
+
+/// See also `man pwrite.2`.
+pub fn pwrite<'a>(
+    fd: BorrowedFd<'a>,
+    buf: &'a [u8],
+    pos: u64,
+) -> impl Future<Output = Result<usize>> + 'a {
+    async move {
+        let fd = types::Fd(fd.as_raw_fd());
+        let sqe = opcode::Write::new(fd, buf.as_ptr(), buf.len() as _)
+            .offset(pos as _)
+            .build();
+        submit(sqe)?.await.map(|n| n as _)
     }
 }
 
