@@ -12,9 +12,18 @@ use slab::Slab;
 pub(crate) struct Op {
     table: OpTable,
     index: usize,
+    is_finished: bool,
 }
 
 impl Op {
+    fn new(table: OpTable, index: usize) -> Self {
+        Self {
+            table,
+            index,
+            is_finished: false,
+        }
+    }
+
     pub fn index(&self) -> usize {
         self.index
     }
@@ -22,7 +31,7 @@ impl Op {
 
 impl Drop for Op {
     fn drop(&mut self) {
-        self.table.cancel(self.index);
+        assert!(self.is_finished);
     }
 }
 
@@ -31,7 +40,10 @@ impl Future for Op {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         let index = self.index;
-        self.table.poll(index, cx.waker())
+        self.table.poll(index, cx.waker()).map_ok(|v| {
+            self.is_finished = true;
+            v
+        })
     }
 }
 
@@ -40,7 +52,6 @@ enum OpState {
     #[default]
     Init,
     Polled(Waker),
-    Canceled,
     Completed(Result<u32>),
 }
 
@@ -54,11 +65,8 @@ impl OpTable {
 
     pub fn insert(&mut self) -> Op {
         let mut table = self.0.lock().unwrap();
-        let index = table.insert(OpState::Init);
-        Op {
-            index,
-            table: self.clone(),
-        }
+        let index = table.insert(OpState::default());
+        Op::new(self.clone(), index)
     }
 
     fn poll(&mut self, index: usize, waker: &Waker) -> Poll<Result<u32>> {
@@ -75,24 +83,9 @@ impl OpTable {
                 }
                 Poll::Pending
             }
-            OpState::Canceled => unreachable!(),
             OpState::Completed(result) => {
                 table.remove(index);
                 Poll::Ready(result)
-            }
-        }
-    }
-
-    pub fn cancel(&mut self, index: usize) {
-        let mut table = self.0.lock().unwrap();
-        let state = table.get_mut(index).unwrap();
-        match mem::take(state) {
-            OpState::Init | OpState::Polled(_) => {
-                *state = OpState::Canceled;
-            }
-            OpState::Canceled => unreachable!(),
-            OpState::Completed(_) => {
-                table.remove(index);
             }
         }
     }
@@ -108,7 +101,6 @@ impl OpTable {
                 *state = OpState::Completed(result);
                 w.wake();
             }
-            OpState::Canceled => {}
             OpState::Completed(..) => unreachable!(),
         }
     }

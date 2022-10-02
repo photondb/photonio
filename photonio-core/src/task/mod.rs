@@ -19,9 +19,6 @@ pub use join::{JoinError, JoinHandle};
 mod yield_now;
 pub use yield_now::yield_now;
 
-mod schedule;
-pub(crate) use schedule::Schedule;
-
 /// A unique identifier for a task.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct TaskId(u64);
@@ -77,4 +74,8 @@ impl Clone for Task {
     fn clone(&self) -> Self {
         unsafe { Self(self.raw().clone(self.0)) }
     }
+}
+
+pub(crate) trait Schedule {
+    fn schedule(&self, task: Task);
 }
