@@ -9,12 +9,38 @@ use quote::quote;
 use syn::parse::Parser;
 
 /// Marks a function to be run on a runtime.
+///
+/// # Examples
+///
+/// ```no_run
+/// use photonio::fs::File;
+///
+/// #[photonio::main(num_threads = 4)]
+/// async fn main() -> std::io::Result<()> {
+///     let mut file = File::create("hello.txt").await?;
+///     file.write_all(b"hello").await?;
+/// }
+/// ```
+///
+/// This is equivalent to:
+///
+/// ```no_run
+/// use photonio::{fs::File, runtime::Builder};
+///
+/// fn main() -> std::io::Result<()> {
+///     let rt = Builder::new().num_threads(4).build()?;
+///     rt.block_on(async {
+///         let mut file = File::create("hello.txt").await?;
+///         file.write_all(b"hello").await?;
+///     })
+/// }
+/// ```
 #[proc_macro_attribute]
 pub fn main(attr: TokenStream, item: TokenStream) -> TokenStream {
     transform(attr, item, false)
 }
 
-/// Marks a function to be run on a runtime for tests.
+/// This is similar to [`macro@main`], but for tests.
 #[proc_macro_attribute]
 pub fn test(attr: TokenStream, item: TokenStream) -> TokenStream {
     transform(attr, item, true)

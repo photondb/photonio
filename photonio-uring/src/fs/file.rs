@@ -53,7 +53,8 @@ impl File {
         syscall::fsync(self.fd()).await
     }
 
-    /// This function is similiar to [`sync_all`], except that it might not synchronize metadata.
+    /// This function is similiar to [`Self::sync_all`], except that it might not synchronize
+    /// metadata.
     ///
     /// See also [`std::fs::File::sync_data`].
     pub async fn sync_data(&self) -> Result<()> {
