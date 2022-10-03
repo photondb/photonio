@@ -9,7 +9,7 @@ use std::{
 
 use futures::task::{waker_ref, ArcWake};
 
-use super::{Schedule, Task};
+use super::{JoinError, Schedule, Task};
 
 #[repr(C)]
 pub(super) struct RawTask {
@@ -44,7 +44,11 @@ impl RawTask {
         (self.vtable.poll)(this)
     }
 
-    pub(super) unsafe fn join<T>(&self, this: NonNull<RawTask>, waker: &Waker) -> Poll<T> {
+    pub(super) unsafe fn join<T>(
+        &self,
+        this: NonNull<RawTask>,
+        waker: &Waker,
+    ) -> Poll<Result<T, JoinError>> {
         let mut result = Poll::Pending;
         (self.vtable.join)(this, waker, &mut result as *mut _ as *mut _);
         result
@@ -143,7 +147,7 @@ where
     F: Future,
     S: Schedule,
 {
-    fn join(&mut self, waker: &Waker) -> Poll<F::Output> {
+    fn join(&mut self, waker: &Waker) -> Poll<Result<F::Output, JoinError>> {
         match std::mem::replace(&mut self.state, State::Init) {
             State::Init => {
                 self.waker = Some(waker.clone());
@@ -151,7 +155,7 @@ where
             }
             State::Finished(output) => {
                 self.state = State::Consumed;
-                Poll::Ready(output)
+                Poll::Ready(Ok(output))
             }
             _ => unreachable!(),
         }

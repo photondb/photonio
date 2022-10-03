@@ -103,7 +103,7 @@ impl ReadAt for File {
     type ReadAt<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn read_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadAt<'a> {
-        syscall::pread(self.fd(), buf, pos)
+        syscall::pread(self.fd(), buf, pos as _)
     }
 }
 
@@ -119,6 +119,6 @@ impl WriteAt for File {
     type WriteAt<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn write_at<'a>(&'a self, buf: &'a [u8], pos: u64) -> Self::WriteAt<'a> {
-        syscall::pwrite(self.0.as_fd(), buf, pos)
+        syscall::pwrite(self.0.as_fd(), buf, pos as _)
     }
 }

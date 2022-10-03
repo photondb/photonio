@@ -30,6 +30,12 @@ fn transform(attr: TokenStream, item: TokenStream, is_test: bool) -> TokenStream
         Err(e) => return token_stream_with_error(item, e),
     };
 
+    let head = if opts.env_logger {
+        quote! { let _ = env_logger::builder().is_test(true).try_init(); }
+    } else {
+        quote! {}
+    };
+
     let mut rt = quote! {
         photonio::runtime::Builder::new()
     };
@@ -41,20 +47,21 @@ fn transform(attr: TokenStream, item: TokenStream, is_test: bool) -> TokenStream
     let block = func.block;
     func.block = syn::parse2(quote! {
         {
+            #head;
             let block = async #block;
             #rt.build().expect("failed to build runtime").block_on(block)
         }
     })
     .unwrap();
 
-    let head = if is_test {
+    let test = if is_test {
         quote! { #[::std::prelude::v1::test] }
     } else {
         quote! {}
     };
 
     quote! {
-        #head
+        #test
         #func
     }
     .into()
@@ -62,6 +69,7 @@ fn transform(attr: TokenStream, item: TokenStream, is_test: bool) -> TokenStream
 
 #[derive(Default)]
 struct Options {
+    env_logger: bool,
     num_threads: Option<usize>,
 }
 
@@ -78,6 +86,9 @@ impl Options {
                 .ok_or_else(|| syn::Error::new_spanned(&attr, "missing attribute name"))?
                 .to_string();
             match name.as_str() {
+                "env_logger" => {
+                    opts.env_logger = true;
+                }
                 "num_threads" => {
                     opts.num_threads = Some(parse_int(&attr.lit)?);
                 }

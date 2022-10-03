@@ -8,7 +8,7 @@ pub struct Builder(runtime::Builder);
 
 impl Builder {
     pub fn new() -> Self {
-        let mut b = tokio::runtime::Builder::new_multi_thread();
+        let mut b = runtime::Builder::new_multi_thread();
         b.enable_all();
         Self(b)
     }

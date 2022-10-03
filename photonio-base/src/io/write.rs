@@ -12,7 +12,9 @@ pub trait Write {
     where
         Self: 'a;
 
-    /// Writes some bytes from `buf` into this object and returns the number of bytes written.
+    /// Writes some bytes from `buf` into this object.
+    ///
+    /// Returns the number of bytes written.
     fn write<'a>(&'a mut self, buf: &'a [u8]) -> Self::Write<'a>;
 }
 
@@ -57,8 +59,9 @@ pub trait WriteAt {
     where
         Self: 'a;
 
-    /// Writes some bytes from `buf` into this object at `pos` and returns the number of bytes
-    /// written.
+    /// Writes some bytes from `buf` into this object at `pos`.
+    ///
+    /// Returns the number of bytes written.
     fn write_at<'a>(&'a self, buf: &'a [u8], pos: u64) -> Self::WriteAt<'a>;
 }
 

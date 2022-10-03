@@ -3,8 +3,8 @@ use photonio::{
     io::{Read, ReadAt, ReadAtExt, ReadExt, Write, WriteAt},
 };
 
-#[photonio::main]
-async fn main() {
+#[photonio::test(env_logger = true)]
+async fn file() {
     let fname = "/tmp/test.txt";
 
     let mut file = OpenOptions::new()

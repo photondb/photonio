@@ -23,7 +23,7 @@ pub use yield_now::yield_now;
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 pub struct TaskId(u64);
 
-/// A handle to a task.
+/// A handle to an asynchronous task.
 pub struct Task(NonNull<RawTask>);
 
 impl Task {

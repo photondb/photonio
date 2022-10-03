@@ -12,7 +12,9 @@ pub trait Read {
     where
         Self: 'a;
 
-    /// Reads some bytes from this object into `buf` and returns the number of bytes read.
+    /// Reads some bytes from this object into `buf`.
+    ///
+    /// Returns the number of bytes read.
     fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Self::Read<'a>;
 }
 
@@ -55,7 +57,9 @@ pub trait ReadAt {
     where
         Self: 'a;
 
-    /// Reads some bytes from this object at `pos` into `buf` and returns the number of bytes read.
+    /// Reads some bytes from this object at `pos` into `buf`.
+    ///
+    /// Returns the number of bytes read.
     fn read_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadAt<'a>;
 }
 

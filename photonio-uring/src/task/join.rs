@@ -7,7 +7,7 @@ use std::{
 
 use super::Task;
 
-/// An error returned from joining a task.
+/// An error returned from a task.
 #[derive(Debug)]
 pub struct JoinError;
 

@@ -139,29 +139,33 @@ pub(crate) async fn shutdown(fd: BorrowedFd<'_>, how: libc::c_int) -> Result<()>
 
 /// See also `man read.2`.
 pub(crate) async fn read<'a>(fd: BorrowedFd<'a>, buf: &'a mut [u8]) -> Result<usize> {
-    let fd = types::Fd(fd.as_raw_fd());
-    let sqe = opcode::Read::new(fd, buf.as_mut_ptr(), buf.len() as _).build();
-    submit(sqe)?.await.map(|n| n as _)
+    pread(fd, buf, -1).await
 }
 
 /// See also `man pread.2`.
-pub(crate) async fn pread<'a>(fd: BorrowedFd<'a>, buf: &'a mut [u8], pos: u64) -> Result<usize> {
+pub(crate) async fn pread<'a>(
+    fd: BorrowedFd<'a>,
+    buf: &'a mut [u8],
+    pos: libc::off64_t,
+) -> Result<usize> {
     let fd = types::Fd(fd.as_raw_fd());
     let sqe = opcode::Read::new(fd, buf.as_mut_ptr(), buf.len() as _)
-        .offset(pos as _)
+        .offset(pos)
         .build();
     submit(sqe)?.await.map(|n| n as _)
 }
 
 /// See also `man write.2`.
 pub(crate) async fn write<'a>(fd: BorrowedFd<'a>, buf: &'a [u8]) -> Result<usize> {
-    let fd = types::Fd(fd.as_raw_fd());
-    let sqe = opcode::Write::new(fd, buf.as_ptr(), buf.len() as _).build();
-    submit(sqe)?.await.map(|n| n as _)
+    pwrite(fd, buf, -1).await
 }
 
 /// See also `man pwrite.2`.
-pub(crate) async fn pwrite<'a>(fd: BorrowedFd<'a>, buf: &'a [u8], pos: u64) -> Result<usize> {
+pub(crate) async fn pwrite<'a>(
+    fd: BorrowedFd<'a>,
+    buf: &'a [u8],
+    pos: libc::off64_t,
+) -> Result<usize> {
     let fd = types::Fd(fd.as_raw_fd());
     let sqe = opcode::Write::new(fd, buf.as_ptr(), buf.len() as _)
         .offset(pos as _)

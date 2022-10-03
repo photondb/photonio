@@ -4,6 +4,8 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
+use log::trace;
+
 use super::{
     worker::{Shared, Worker},
     Builder,
@@ -23,6 +25,7 @@ impl Executor {
         for id in 0..builder.num_threads {
             let thread_name = format!("photonio-worker/{}", id);
             let worker = Worker::spawn(
+                id,
                 thread_name,
                 builder.thread_stack_size,
                 builder.event_interval,
@@ -44,7 +47,8 @@ impl Executor {
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let index = (id % self.workers.len() as u64) as usize;
         let (task, handle) = Task::new(id, future, self.shared.clone());
-        self.workers[index].schedule(task);
+        trace!("spawn task {} onto worker {}", id, index);
+        self.workers[index].schedule(task).unwrap();
         handle
     }
 }

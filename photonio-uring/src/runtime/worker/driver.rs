@@ -55,9 +55,10 @@ impl Driver {
         Unpark(self.eventfd.clone())
     }
 
-    pub(super) unsafe fn schedule(&mut self, op: squeue::Entry) -> Result<OpHandle> {
+    pub(super) fn schedule(&mut self, op: squeue::Entry) -> Result<OpHandle> {
         let handle = self.table.insert();
-        self.push(op.user_data(handle.index() as _))?;
+        let sqe = op.user_data(handle.index() as _);
+        unsafe { self.push(sqe)? };
         Ok(handle)
     }
 }

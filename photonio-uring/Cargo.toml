@@ -12,6 +12,7 @@ description = "A PhotonIO implementation based on io-uring."
 photonio-base = { version = "0.0.1", path = "../photonio-base" }
 io-uring = { version = "0.5", features = ["unstable"] }
 futures = "0.3"
+log = "0.4"
 libc = "0.2"
 num_cpus = "1.13"
 slab = "0.4"
