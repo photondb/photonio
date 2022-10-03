@@ -1,4 +1,4 @@
-//! The PhotonIO macros.
+//! Procedural macros for PhotonIO.
 
 #![warn(missing_docs)]
 
@@ -9,16 +9,16 @@ use syn::parse::Parser;
 /// Marks a function to be run on a runtime.
 #[proc_macro_attribute]
 pub fn main(attr: TokenStream, item: TokenStream) -> TokenStream {
-    convert(attr, item, false)
+    transform(attr, item, false)
 }
 
 /// Marks a function to be run on a runtime for tests.
 #[proc_macro_attribute]
 pub fn test(attr: TokenStream, item: TokenStream) -> TokenStream {
-    convert(attr, item, true)
+    transform(attr, item, true)
 }
 
-fn convert(attr: TokenStream, item: TokenStream, is_test: bool) -> TokenStream {
+fn transform(attr: TokenStream, item: TokenStream, is_test: bool) -> TokenStream {
     let opts = match Options::parse(attr.clone()) {
         Ok(opts) => opts,
         Err(e) => return token_stream_with_error(attr, e),
@@ -35,6 +35,7 @@ fn convert(attr: TokenStream, item: TokenStream, is_test: bool) -> TokenStream {
         rt = quote! { #rt.num_threads(#v) }
     }
 
+    func.sig.asyncness = None;
     let block = func.block;
     func.block = syn::parse2(quote! {
         {
@@ -43,7 +44,6 @@ fn convert(attr: TokenStream, item: TokenStream, is_test: bool) -> TokenStream {
         }
     })
     .unwrap();
-    func.sig.asyncness = None;
 
     let head = if is_test {
         quote! { #[::std::prelude::v1::test] }
@@ -79,7 +79,7 @@ impl Options {
                 "num_threads" => {
                     opts.num_threads = Some(parse_int(&attr.lit)?);
                 }
-                _ => return Err(syn::Error::new_spanned(&attr, "unknown attribute")),
+                _ => return Err(syn::Error::new_spanned(&attr, "unknown attribute name")),
             }
         }
         Ok(opts)
