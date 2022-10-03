@@ -6,6 +6,7 @@ impl Metadata {
         Self(metadata)
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> u64 {
         self.0.len()
     }

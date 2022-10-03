@@ -43,3 +43,9 @@ impl Builder {
         Ok(Runtime(Arc::new(pool)))
     }
 }
+
+impl Default for Builder {
+    fn default() -> Self {
+        Self::new()
+    }
+}

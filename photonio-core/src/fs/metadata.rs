@@ -12,6 +12,7 @@ impl Metadata {
     }
 
     /// See also [`std::fs::Metadata::len`].
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> u64 {
         self.0.stx_size
     }
@@ -34,11 +35,7 @@ impl Metadata {
 
 impl Metadata {
     fn is_type(&self, ty: libc::mode_t) -> bool {
-        if (self.0.stx_mode as u32 & libc::S_IFMT) == ty {
-            true
-        } else {
-            false
-        }
+        (self.0.stx_mode as u32 & libc::S_IFMT) == ty
     }
 }
 

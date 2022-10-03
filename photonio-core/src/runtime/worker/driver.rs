@@ -66,10 +66,12 @@ impl Driver {
     const UNPARK_TOKEN: u64 = u64::MAX;
 
     unsafe fn push(&mut self, sqe: squeue::Entry) -> Result<()> {
-        while let Err(_) = {
+        while {
             let mut sq = self.io.submission();
             sq.push(&sqe)
-        } {
+        }
+        .is_err()
+        {
             self.submit()?;
         }
         Ok(())

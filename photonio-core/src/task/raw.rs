@@ -234,7 +234,7 @@ where
     S: Schedule,
 {
     let this = suit::<F, S>(raw);
-    let clone = ManuallyDrop::into_inner(this).clone();
+    let clone = ManuallyDrop::into_inner(this.clone());
     RawTask::from_suit(clone)
 }
 
