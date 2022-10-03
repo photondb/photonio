@@ -1,12 +1,13 @@
-//! A runtime for asynchronous filesystem and networking I/O.
+//! A runtime for asynchronous applications.
 //!
 //! There are two implementations of this runtime:
-//! - The [`photonio-core`][photonio-core] crate provide an implementation based on io-uring.
-//! - The [`photonio-tokio`][photonio-tokio] crate provide an implementation based on
+//! - The [`photonio-core`][photonio-core] crate provides an implementation based on io-uring.
+//! - The [`photonio-tokio`][photonio-tokio] crate provides an implementation based on
 //!   [`tokio`][tokio].
 //!
-//! By default, this crate use the `photonio-core` implementation on Linux and use
-//! the `photonio-tokio` implementation on other platforms.
+//! By default, this crate uses the `photonio-core` implementation on Linux and
+//! the `photonio-tokio` implementation on other platforms. To use the `photonio-tokio`
+//! implementation on all platforms, enable the `tokio` feature.
 //!
 //! [photonio-core]: https://docs.rs/photonio-core
 //! [photonio-tokio]: https://docs.rs/photonio-tokio

@@ -4,7 +4,7 @@ use std::{future::Future, io::Result, net::SocketAddr};
 ///
 /// This trait is an async version of [`std::net::ToSocketAddrs`].
 pub trait ToSocketAddrs {
-    /// An iterator over the resolved socket addresses.
+    /// An iterator over the resolved [`SocketAddr`] values.
     type Iter: Iterator<Item = SocketAddr>;
     /// A future that resolves to the result of [`Self::to_socket_addrs`].
     type Future: Future<Output = Result<Self::Iter>>;
