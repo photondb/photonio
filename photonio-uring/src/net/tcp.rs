@@ -19,7 +19,7 @@ use crate::{
 pub struct TcpListener(Socket);
 
 impl TcpListener {
-    /// Creates a TCP socket bound to the specified address.
+    /// Creates a listener bound to the specified address.
     ///
     /// See also [`std::net::TcpListener::bind`].
     pub async fn bind<A: ToSocketAddrs>(addrs: A) -> Result<Self> {
@@ -37,13 +37,13 @@ impl TcpListener {
     ///
     /// See also [`std::net::TcpListener::accept`].
     pub async fn accept(&self) -> Result<(TcpStream, SocketAddr)> {
-        let (fd, addr) = syscall::accept(self.fd()).await?;
+        let (fd, addr) = syscall::accept(self.fd(), libc::SOCK_CLOEXEC).await?;
         let stream = unsafe { TcpStream::from_raw_fd(fd.into_raw_fd()) };
         let socket_addr = to_socket_addr(addr)?;
         Ok((stream, socket_addr))
     }
 
-    /// Returns the local socket address.
+    /// Returns the local socket address of this listener.
     ///
     /// See also [`std::net::TcpListener::local_addr`].
     pub fn local_addr(&self) -> Result<SocketAddr> {

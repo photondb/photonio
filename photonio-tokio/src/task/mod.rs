@@ -3,7 +3,7 @@ use std::future::Future;
 use tokio::task;
 
 mod join;
-pub use join::JoinHandle;
+pub use join::{JoinError, JoinHandle};
 
 #[derive(Debug)]
 pub struct Task(TaskId);
@@ -23,4 +23,8 @@ where
     T::Output: Send + 'static,
 {
     JoinHandle::new(task::spawn(future))
+}
+
+pub async fn yield_now() {
+    task::yield_now().await
 }

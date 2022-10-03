@@ -29,9 +29,9 @@ pub struct Task(NonNull<RawTask>);
 impl Task {
     pub(crate) fn new<F, S>(id: u64, future: F, schedule: S) -> (Self, JoinHandle<F::Output>)
     where
-        F: Future + Send,
-        F::Output: Send,
-        S: Schedule + Send,
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+        S: Schedule + Send + 'static,
     {
         let task = Self(RawTask::new(id, future, schedule));
         let handle = JoinHandle::new(task.clone());
@@ -43,7 +43,7 @@ impl Task {
         TaskId(self.raw().id())
     }
 
-    pub(crate) fn poll(self) {
+    pub(crate) fn poll(&self) {
         unsafe { self.raw().poll(self.0) }
     }
 
