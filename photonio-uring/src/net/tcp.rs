@@ -3,7 +3,6 @@ use std::{
     io::{Error, ErrorKind, Result},
     net::{Shutdown, SocketAddr, ToSocketAddrs},
     os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd},
-    time::Duration,
 };
 
 use socket2::{Domain, SockAddr, Socket, Type};
@@ -20,6 +19,8 @@ use crate::{
 pub struct TcpListener(Socket);
 
 impl TcpListener {
+    /// Creates a TCP socket bound to the specified address.
+    ///
     /// See also [`std::net::TcpListener::bind`].
     pub async fn bind<A: ToSocketAddrs>(addrs: A) -> Result<Self> {
         let mut last_err = None;
@@ -32,6 +33,8 @@ impl TcpListener {
         Err(last_err.unwrap_or_else(|| ErrorKind::InvalidInput.into()))
     }
 
+    /// Accepts a new connection from this listener.
+    ///
     /// See also [`std::net::TcpListener::accept`].
     pub async fn accept(&self) -> Result<(TcpStream, SocketAddr)> {
         let (fd, addr) = syscall::accept(self.fd()).await?;
@@ -40,17 +43,23 @@ impl TcpListener {
         Ok((stream, socket_addr))
     }
 
+    /// Returns the local socket address.
+    ///
     /// See also [`std::net::TcpListener::local_addr`].
     pub fn local_addr(&self) -> Result<SocketAddr> {
         let addr = self.0.local_addr()?;
         to_socket_addr(addr)
     }
 
+    /// Gets the value of the `IP_TTL` option on this socket.
+    ///
     /// See also [`std::net::TcpListener::ttl`].
     pub fn ttl(&self) -> Result<u32> {
         self.0.ttl()
     }
 
+    /// Sets the value of the `IP_TTL` option on this socket.
+    ///
     /// See also [`std::net::TcpListener::set_ttl`].
     pub fn set_ttl(&self, ttl: u32) -> Result<()> {
         self.0.set_ttl(ttl)
@@ -94,6 +103,8 @@ impl IntoRawFd for TcpListener {
 pub struct TcpStream(Socket);
 
 impl TcpStream {
+    /// Opens a TCP connection to a remote host.
+    ///
     /// See also [`std::net::TcpStream::connect`].
     pub async fn connect(addr: SocketAddr) -> Result<Self> {
         let socket = Socket::new(Domain::for_address(addr), Type::STREAM, None)?;
@@ -102,6 +113,8 @@ impl TcpStream {
         Ok(stream)
     }
 
+    /// Shuts down the read, write, or both halves of this connection.
+    ///
     /// See also [`std::net::TcpStream::shutdown`].
     pub async fn shutdown(&self, how: Shutdown) -> Result<()> {
         let flags = match how {
@@ -112,56 +125,48 @@ impl TcpStream {
         syscall::shutdown(self.fd(), flags).await.map(|_| ())
     }
 
+    /// Returns the socket address of the local half of this connection.
+    ///
     /// See also [`std::net::TcpStream::local_addr`].
     pub fn local_addr(&self) -> Result<SocketAddr> {
         let addr = self.0.local_addr()?;
         to_socket_addr(addr)
     }
 
+    /// Returns the socket address of the remote peer of this connection.
+    ///
     /// See also [`std::net::TcpStream::peer_addr`].
     pub fn peer_addr(&self) -> Result<SocketAddr> {
         let addr = self.0.peer_addr()?;
         to_socket_addr(addr)
     }
 
+    /// Gets the value of the `IP_TTL` option on this socket.
+    ///
     /// See also [`std::net::TcpStream::ttl`].
     pub fn ttl(&self) -> Result<u32> {
         self.0.ttl()
     }
 
+    /// Sets the value of the `IP_TTL` option on this socket.
+    ///
     /// See also [`std::net::TcpStream::set_ttl`].
     pub fn set_ttl(&self, ttl: u32) -> Result<()> {
         self.0.set_ttl(ttl)
     }
 
+    /// Gets the value of the `TCP_NODELAY` option on this socket.
+    ///
     /// See also [`std::net::TcpStream::nodelay`].
     pub fn nodelay(&self) -> Result<bool> {
         self.0.nodelay()
     }
 
+    /// Sets the value of the `TCP_NODELAY` option on this socket.
+    ///
     /// See also [`std::net::TcpStream::set_nodelay`].
     pub fn set_nodelay(&self, nodelay: bool) -> Result<()> {
         self.0.set_nodelay(nodelay)
-    }
-
-    /// See also [`std::net::TcpStream::read_timeout`].
-    pub fn read_timeout(&self) -> Result<Option<Duration>> {
-        self.0.read_timeout()
-    }
-
-    /// See also [`std::net::TcpStream::set_read_timeout`].
-    pub fn set_read_timeout(&self, dur: Option<Duration>) -> Result<()> {
-        self.0.set_read_timeout(dur)
-    }
-
-    /// See also [`std::net::TcpStream::write_timeout`].
-    pub fn write_timeout(&self) -> Result<Option<Duration>> {
-        self.0.write_timeout()
-    }
-
-    /// See also [`std::net::TcpStream::set_write_timeout`].
-    pub fn set_write_timeout(&self, dur: Option<Duration>) -> Result<()> {
-        self.0.set_write_timeout(dur)
     }
 }
 
