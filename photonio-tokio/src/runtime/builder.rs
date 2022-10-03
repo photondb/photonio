@@ -32,9 +32,3 @@ impl Builder {
         self.0.build().map(Runtime)
     }
 }
-
-impl Default for Builder {
-    fn default() -> Self {
-        Self::new()
-    }
-}

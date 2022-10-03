@@ -94,9 +94,3 @@ impl OpenOptions {
         flags | libc::O_CLOEXEC
     }
 }
-
-impl Default for OpenOptions {
-    fn default() -> Self {
-        Self::new()
-    }
-}

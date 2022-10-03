@@ -16,7 +16,7 @@ pub(super) struct Driver {
 }
 
 impl Driver {
-    pub fn new() -> Result<Self> {
+    pub(super) fn new() -> Result<Self> {
         let io = IoUring::new(4096)?;
         let eventfd = unsafe {
             let fd = syscall_result(libc::eventfd(0, libc::EFD_CLOEXEC))?;
@@ -30,13 +30,13 @@ impl Driver {
         })
     }
 
-    pub fn tick(&mut self) -> Result<()> {
+    pub(super) fn tick(&mut self) -> Result<()> {
         self.submit()?;
         self.pull();
         Ok(())
     }
 
-    pub fn park(&mut self) -> Result<()> {
+    pub(super) fn park(&mut self) -> Result<()> {
         // Registers the eventfd to unpark this driver.
         let fd = types::Fd(self.eventfd.as_raw_fd());
         let buf = &mut self.eventbuf;
@@ -51,11 +51,11 @@ impl Driver {
         Ok(())
     }
 
-    pub fn unpark(&self) -> Unpark {
+    pub(super) fn unpark(&self) -> Unpark {
         Unpark(self.eventfd.clone())
     }
 
-    pub unsafe fn schedule(&mut self, op: squeue::Entry) -> Result<OpHandle> {
+    pub(super) unsafe fn schedule(&mut self, op: squeue::Entry) -> Result<OpHandle> {
         let handle = self.table.insert();
         self.push(op.user_data(handle.index() as _))?;
         Ok(handle)
@@ -116,7 +116,7 @@ impl Driver {
 pub(super) struct Unpark(Arc<OwnedFd>);
 
 impl Unpark {
-    pub fn unpark(&self) -> Result<()> {
+    pub(super) fn unpark(&self) -> Result<()> {
         let buf = 1u64.to_ne_bytes();
         let res = unsafe { libc::write(self.0.as_raw_fd(), buf.as_ptr() as _, buf.len() as _) };
         syscall_result(res as _).map(|_| ())

@@ -13,11 +13,11 @@ use slab::Slab;
 pub(super) struct OpTable(Arc<Mutex<Slab<OpState>>>);
 
 impl OpTable {
-    pub fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self::default()
     }
 
-    pub fn insert(&mut self) -> OpHandle {
+    pub(super) fn insert(&mut self) -> OpHandle {
         let mut table = self.0.lock().unwrap();
         let index = table.insert(OpState::default());
         OpHandle::new(self.clone(), index)
@@ -44,7 +44,7 @@ impl OpTable {
         }
     }
 
-    pub fn complete(&mut self, index: usize, result: Result<u32>) {
+    pub(super) fn complete(&mut self, index: usize, result: Result<u32>) {
         let mut table = self.0.lock().unwrap();
         let state = table.get_mut(index).unwrap();
         match mem::take(state) {
@@ -83,7 +83,7 @@ impl OpHandle {
         }
     }
 
-    pub fn index(&self) -> usize {
+    pub(super) fn index(&self) -> usize {
         self.index
     }
 }

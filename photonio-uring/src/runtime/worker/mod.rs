@@ -21,7 +21,7 @@ enum Message {
 type Sender = mpsc::Sender<Message>;
 type Receiver = mpsc::Receiver<Message>;
 
-pub(super) struct Local {
+struct Local {
     rx: Receiver,
     driver: Driver,
     run_queue: VecDeque<Task>,
@@ -42,16 +42,16 @@ impl Local {
     fn run(&mut self) -> Result<()> {
         loop {
             let num_tasks = self.poll()?;
-            if num_tasks > 0 {
-                self.driver.tick()?;
-            } else {
-                self.driver.park()?;
-            }
             for m in self.rx.try_iter() {
                 match m {
                     Message::Shutdown => return Ok(()),
                     Message::Schedule(task) => self.run_queue.push_back(task),
                 }
+            }
+            if num_tasks > 0 {
+                self.driver.tick()?;
+            } else {
+                self.driver.park()?;
             }
         }
     }
@@ -83,7 +83,7 @@ pub(super) struct Worker {
 }
 
 impl Worker {
-    pub fn spawn(
+    pub(super) fn spawn(
         thread_name: String,
         thread_stack_size: usize,
         event_interval: usize,
@@ -98,7 +98,7 @@ impl Worker {
         Ok(Self { tx, unpark })
     }
 
-    pub fn schedule(&self, task: Task) {
+    pub(super) fn schedule(&self, task: Task) {
         self.tx.send(Message::Schedule(task)).unwrap();
         self.unpark.unpark().unwrap();
     }
@@ -114,7 +114,7 @@ impl Drop for Worker {
 pub(super) struct Shared;
 
 impl Shared {
-    pub fn new() -> Self {
+    pub(super) fn new() -> Self {
         Self
     }
 }

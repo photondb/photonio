@@ -17,7 +17,7 @@ pub(super) struct Executor {
 }
 
 impl Executor {
-    pub fn new(builder: Builder) -> Result<Self> {
+    pub(super) fn new(builder: Builder) -> Result<Self> {
         let shared = Shared::new();
         let mut workers = Vec::new();
         for id in 0..builder.num_threads {
@@ -36,7 +36,7 @@ impl Executor {
         })
     }
 
-    pub fn spawn<F>(&self, future: F) -> JoinHandle<F::Output>
+    pub(super) fn spawn<F>(&self, future: F) -> JoinHandle<F::Output>
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,
