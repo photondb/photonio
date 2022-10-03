@@ -11,22 +11,30 @@ impl Metadata {
         Self(stat)
     }
 
+    /// Returns the size of the file this metadata is for.
+    ///
     /// See also [`std::fs::Metadata::len`].
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> u64 {
         self.0.stx_size
     }
 
+    /// Returns true if this metadata is for a directory.
+    ///
     /// See also [`std::fs::Metadata::is_dir`].
     pub fn is_dir(&self) -> bool {
         self.is_type(libc::S_IFDIR)
     }
 
+    /// Returns true if this metadata is for a regular file.
+    ///
     /// See also [`std::fs::Metadata::is_file`].
     pub fn is_file(&self) -> bool {
         self.is_type(libc::S_IFREG)
     }
 
+    /// Returns true if this metadata is for a symbolic link.
+    ///
     /// See also [`std::fs::Metadata::is_symlink`].
     pub fn is_symlink(&self) -> bool {
         self.is_type(libc::S_IFLNK)

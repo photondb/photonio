@@ -6,8 +6,11 @@ use std::{io::Result, path::Path};
 
 use crate::runtime::syscall;
 
+mod open;
+pub use open::OpenOptions;
+
 mod file;
-pub use file::{File, OpenOptions};
+pub use file::File;
 
 mod metadata;
 pub use metadata::Metadata;

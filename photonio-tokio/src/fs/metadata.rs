@@ -1,11 +1,9 @@
-#[derive(Debug)]
-pub struct Metadata(std::fs::Metadata);
+use std::fs;
+
+#[derive(Clone, Debug)]
+pub struct Metadata(pub(super) fs::Metadata);
 
 impl Metadata {
-    pub(super) fn new(metadata: std::fs::Metadata) -> Self {
-        Self(metadata)
-    }
-
     #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> u64 {
         self.0.len()
