@@ -23,8 +23,6 @@ impl Executor {
         for id in 0..builder.num_threads {
             let thread_name = format!("photonio-worker/{}", id);
             let worker = Worker::spawn(
-                id,
-                shared.clone(),
                 thread_name,
                 builder.thread_stack_size,
                 builder.event_interval,

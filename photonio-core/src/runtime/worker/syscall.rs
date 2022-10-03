@@ -15,7 +15,7 @@ use std::{
 use io_uring::{opcode, types};
 use socket2::SockAddr;
 
-use super::context::submit;
+use super::submit;
 
 /// See also `man open.2`.
 pub fn open(
@@ -37,7 +37,6 @@ pub fn open(
 }
 
 /// See also `man close.2`.
-#[allow(dead_code)]
 pub fn close(fd: OwnedFd) -> impl Future<Output = Result<()>> {
     async move {
         let fd = types::Fd(fd.as_raw_fd());

@@ -23,6 +23,11 @@ impl Builder {
         self
     }
 
+    pub fn event_interval(mut self, event_interval: usize) -> Self {
+        self.0.event_interval(event_interval as _);
+        self
+    }
+
     pub fn build(mut self) -> Result<Runtime> {
         self.0.build().map(Runtime)
     }
