@@ -9,11 +9,11 @@ repository = "https://github.com/photondb/photonio"
 description = "A runtime for asynchronous applications."
 
 [features]
-default = ["core"]
-core = ["dep:photonio-core"]
+default = ["uring"]
+uring = ["dep:photonio-uring"]
 tokio = ["dep:photonio-tokio"]
 
 [dependencies]
-photonio-core = { version = "0.0.1", path = "../photonio-core", optional = true }
+photonio-uring = { version = "0.0.1", path = "../photonio-uring", optional = true }
 photonio-tokio = { version = "0.0.1", path = "../photonio-tokio", optional = true }
 photonio-macros = { version = "0.0.1", path = "../photonio-macros" }

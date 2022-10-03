@@ -2,7 +2,7 @@
 members = [
   "photonio",
   "photonio-base",
-  "photonio-core",
+  "photonio-uring",
   "photonio-tokio",
   "photonio-macros",
 ]

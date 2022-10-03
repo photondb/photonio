@@ -1,6 +1,8 @@
-//! The core of PhotonIO.
+//! A PhotonIO implementation based on io-uring.
 
-#![warn(missing_docs)]
+#![deny(unused_must_use)]
+#![warn(missing_docs, unreachable_pub)]
+#![allow(clippy::new_without_default)]
 #![feature(generic_associated_types)]
 #![feature(type_alias_impl_trait)]
 #![feature(io_error_more)]

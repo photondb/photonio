@@ -214,28 +214,14 @@ dependencies = [
 name = "photonio"
 version = "0.0.1"
 dependencies = [
- "photonio-core",
  "photonio-macros",
  "photonio-tokio",
+ "photonio-uring",
 ]
 
 [[package]]
 name = "photonio-base"
 version = "0.0.1"
-
-[[package]]
-name = "photonio-core"
-version = "0.0.1"
-dependencies = [
- "futures",
- "io-uring",
- "libc",
- "num_cpus",
- "photonio-base",
- "scoped-tls",
- "slab",
- "socket2",
-]
 
 [[package]]
 name = "photonio-macros"
@@ -254,6 +240,20 @@ dependencies = [
  "futures",
  "photonio-base",
  "tokio",
+]
+
+[[package]]
+name = "photonio-uring"
+version = "0.0.1"
+dependencies = [
+ "futures",
+ "io-uring",
+ "libc",
+ "num_cpus",
+ "photonio-base",
+ "scoped-tls",
+ "slab",
+ "socket2",
 ]
 
 [[package]]

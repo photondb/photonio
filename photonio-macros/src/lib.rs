@@ -1,6 +1,8 @@
 //! Procedural macros for PhotonIO.
 
-#![warn(missing_docs)]
+#![deny(unused_must_use)]
+#![warn(missing_docs, unreachable_pub)]
+#![allow(clippy::new_without_default)]
 
 use proc_macro::TokenStream;
 use quote::quote;
