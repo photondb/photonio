@@ -26,10 +26,31 @@ jobs:
         command: clippy
         args: --tests --benches --examples --all-features -- -D warnings
 
-  tests:
+  tests-on-linux:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - uses: Swatinem/rust-cache@v1
+    - name: Run unit tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+    - name: Run unit tests with tokio
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: --features tokio
+    - name: Run miri tests
+      uses: actions-rs/cargo@v1
+      with:
+        command: miri
+        args: test
+
+  tests-on-others:
     strategy:
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        os: [macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     steps:
     - name: Checkout
@@ -39,8 +60,3 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: test
-    - name: Run miri tests
-      uses: actions-rs/cargo@v1
-      with:
-        command: miri
-        args: test
