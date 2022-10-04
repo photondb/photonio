@@ -8,6 +8,9 @@ use std::{
 use super::{Result, Task};
 
 /// A handle to await a task.
+///
+/// A `JoinHandle` detaches the associated task when it is dropped. The task will continue to run on
+/// the runtime until it completes.
 pub struct JoinHandle<T> {
     task: Task,
     _mark: PhantomData<T>,
