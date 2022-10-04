@@ -17,7 +17,7 @@
 #![feature(pin_macro, io_error_more, type_alias_impl_trait)]
 
 pub use photonio_macros::{main, test};
-#[cfg(any(not(target_os = "linux"), feature = "tokio"))]
+#[cfg(any(feature = "tokio", not(target_os = "linux")))]
 pub use photonio_tokio::*;
-#[cfg(any(doc, all(target_os = "linux", not(feature = "tokio"))))]
+#[cfg(all(not(feature = "tokio"), target_os = "linux"))]
 pub use photonio_uring::*;
