@@ -42,6 +42,18 @@ impl OpenOptions {
     }
 
     pub async fn open<P: AsRef<Path>>(&self, path: P) -> Result<File> {
-        self.0.open(path).await.map(File)
+        self.0.open(path).await.map(File::from)
+    }
+}
+
+impl Default for OpenOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl From<fs::OpenOptions> for OpenOptions {
+    fn from(options: fs::OpenOptions) -> Self {
+        Self(options)
     }
 }

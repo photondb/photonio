@@ -254,7 +254,6 @@ name = "photonio"
 version = "0.0.1"
 dependencies = [
  "env_logger",
- "log",
  "photonio-macros",
  "photonio-tokio",
  "photonio-uring",

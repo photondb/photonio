@@ -20,4 +20,3 @@ photonio-macros = { version = "0.0.1", path = "../photonio-macros" }
 
 [dev-dependencies]
 env_logger = "0.9"
-log = "0.4"

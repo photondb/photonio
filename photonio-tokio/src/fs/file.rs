@@ -9,7 +9,7 @@ use super::Metadata;
 use crate::io::{Read, ReadAt, Write, WriteAt};
 
 #[derive(Debug)]
-pub struct File(pub(super) fs::File);
+pub struct File(fs::File);
 
 impl File {
     pub async fn open<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
@@ -21,7 +21,7 @@ impl File {
     }
 
     pub async fn metadata(&self) -> Result<Metadata> {
-        self.0.metadata().await.map(Metadata)
+        self.0.metadata().await.map(Metadata::from)
     }
 
     pub async fn sync_all(&self) -> Result<()> {
@@ -30,6 +30,12 @@ impl File {
 
     pub async fn sync_data(&self) -> Result<()> {
         self.0.sync_data().await
+    }
+}
+
+impl From<fs::File> for File {
+    fn from(file: fs::File) -> Self {
+        Self(file)
     }
 }
 

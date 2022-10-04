@@ -1,8 +1,6 @@
 //! Procedural macros for PhotonIO.
 
-#![deny(unused_must_use)]
 #![warn(missing_docs, unreachable_pub)]
-#![allow(clippy::new_without_default)]
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -18,7 +16,7 @@ use syn::parse::Parser;
 /// #[photonio::main(num_threads = 4)]
 /// async fn main() -> std::io::Result<()> {
 ///     let mut file = File::create("hello.txt").await?;
-///     file.write_all(b"hello").await?;
+///     file.write(b"hello").await?;
 /// }
 /// ```
 ///
@@ -31,7 +29,7 @@ use syn::parse::Parser;
 ///     let rt = Builder::new().num_threads(4).build()?;
 ///     rt.block_on(async {
 ///         let mut file = File::create("hello.txt").await?;
-///         file.write_all(b"hello").await?;
+///         file.write(b"hello").await?;
 ///     })
 /// }
 /// ```
@@ -56,7 +54,13 @@ fn transform(attr: TokenStream, item: TokenStream, is_test: bool) -> TokenStream
         Err(e) => return token_stream_with_error(item, e),
     };
 
-    let head = if opts.env_logger {
+    let head = if is_test {
+        quote! { #[::std::prelude::v1::test] }
+    } else {
+        quote! {}
+    };
+
+    let init = if is_test && opts.env_logger {
         quote! { let _ = env_logger::builder().is_test(true).try_init(); }
     } else {
         quote! {}
@@ -73,21 +77,15 @@ fn transform(attr: TokenStream, item: TokenStream, is_test: bool) -> TokenStream
     let block = func.block;
     func.block = syn::parse2(quote! {
         {
-            #head;
+            #init;
             let block = async #block;
             #rt.build().expect("failed to build runtime").block_on(block)
         }
     })
     .unwrap();
 
-    let test = if is_test {
-        quote! { #[::std::prelude::v1::test] }
-    } else {
-        quote! {}
-    };
-
     quote! {
-        #test
+        #head
         #func
     }
     .into()
@@ -95,8 +93,9 @@ fn transform(attr: TokenStream, item: TokenStream, is_test: bool) -> TokenStream
 
 #[derive(Default)]
 struct Options {
-    env_logger: bool,
     num_threads: Option<usize>,
+    // Internal options for tests.
+    env_logger: bool,
 }
 
 type Attributes = syn::punctuated::Punctuated<syn::MetaNameValue, syn::Token![,]>;
@@ -112,11 +111,11 @@ impl Options {
                 .ok_or_else(|| syn::Error::new_spanned(&attr, "missing attribute name"))?
                 .to_string();
             match name.as_str() {
-                "env_logger" => {
-                    opts.env_logger = true;
-                }
                 "num_threads" => {
                     opts.num_threads = Some(parse_int(&attr.lit)?);
+                }
+                "env_logger" => {
+                    opts.env_logger = true;
                 }
                 _ => return Err(syn::Error::new_spanned(&attr, "unknown attribute name")),
             }

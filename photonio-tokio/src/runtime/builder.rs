@@ -29,6 +29,18 @@ impl Builder {
     }
 
     pub fn build(mut self) -> Result<Runtime> {
-        self.0.build().map(Runtime)
+        self.0.build().map(Runtime::from)
+    }
+}
+
+impl Default for Builder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl From<runtime::Builder> for Builder {
+    fn from(builder: runtime::Builder) -> Self {
+        Self(builder)
     }
 }

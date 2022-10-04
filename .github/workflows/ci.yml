@@ -47,11 +47,8 @@ jobs:
         command: miri
         args: test
 
-  tests-on-others:
-    strategy:
-      matrix:
-        os: [macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+  tests-on-macos:
+    runs-on: macos-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v2

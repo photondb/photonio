@@ -1,7 +1,7 @@
 use std::fs;
 
 #[derive(Clone, Debug)]
-pub struct Metadata(pub(super) fs::Metadata);
+pub struct Metadata(fs::Metadata);
 
 impl Metadata {
     #[allow(clippy::len_without_is_empty)]
@@ -19,5 +19,11 @@ impl Metadata {
 
     pub fn is_symlink(&self) -> bool {
         self.0.is_symlink()
+    }
+}
+
+impl From<fs::Metadata> for Metadata {
+    fn from(metadata: fs::Metadata) -> Self {
+        Self(metadata)
     }
 }

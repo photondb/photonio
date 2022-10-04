@@ -30,3 +30,9 @@ impl Runtime {
         JoinHandle::new(self.0.spawn(future))
     }
 }
+
+impl From<runtime::Runtime> for Runtime {
+    fn from(runtime: runtime::Runtime) -> Self {
+        Self(runtime)
+    }
+}
