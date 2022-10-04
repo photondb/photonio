@@ -5,11 +5,7 @@ use std::{
     task::{Context, Poll},
 };
 
-use super::Task;
-
-/// An error returned from a task.
-#[derive(Debug)]
-pub struct JoinError;
+use super::{Result, Task};
 
 /// A handle to await a task.
 pub struct JoinHandle<T> {
@@ -38,7 +34,7 @@ impl<T> Drop for JoinHandle<T> {
 }
 
 impl<T> Future for JoinHandle<T> {
-    type Output = Result<T, JoinError>;
+    type Output = Result<T>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         self.task.join(cx.waker())

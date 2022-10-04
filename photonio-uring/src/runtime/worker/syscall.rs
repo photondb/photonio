@@ -48,17 +48,17 @@ pub(crate) async fn fstat(fd: BorrowedFd<'_>) -> Result<libc::statx> {
 
 /// See also `man fsync.2`.
 pub(crate) async fn fsync(fd: BorrowedFd<'_>) -> Result<()> {
-    let fd = types::Fd(fd.as_raw_fd());
-    let sqe = opcode::Fsync::new(fd).build();
-    submit(sqe)?.await.map(|_| ())
+    fsync_inner(fd, types::FsyncFlags::empty()).await
 }
 
 /// See also `man fdatasync.2`.
 pub(crate) async fn fdatasync(fd: BorrowedFd<'_>) -> Result<()> {
+    fsync_inner(fd, types::FsyncFlags::DATASYNC).await
+}
+
+async fn fsync_inner(fd: BorrowedFd<'_>, flags: types::FsyncFlags) -> Result<()> {
     let fd = types::Fd(fd.as_raw_fd());
-    let sqe = opcode::Fsync::new(fd)
-        .flags(types::FsyncFlags::DATASYNC)
-        .build();
+    let sqe = opcode::Fsync::new(fd).flags(flags).build();
     submit(sqe)?.await.map(|_| ())
 }
 
@@ -73,17 +73,19 @@ pub(crate) async fn mkdir(path: &Path, mode: libc::mode_t) -> Result<()> {
 
 /// See also `man rmdir.2`.
 pub(crate) async fn rmdir(path: &Path) -> Result<()> {
-    let path = new_path_str(path)?;
-    let sqe = opcode::UnlinkAt::new(types::Fd(libc::AT_FDCWD), path.as_c_str().as_ptr())
-        .flags(libc::AT_REMOVEDIR)
-        .build();
-    submit(sqe)?.await.map(|_| ())
+    unlink_inner(path, libc::AT_REMOVEDIR).await
 }
 
 /// See also `man unlink.2`.
 pub(crate) async fn unlink(path: &Path) -> Result<()> {
+    unlink_inner(path, 0).await
+}
+
+async fn unlink_inner(path: &Path, flags: libc::c_int) -> Result<()> {
     let path = new_path_str(path)?;
-    let sqe = opcode::UnlinkAt::new(types::Fd(libc::AT_FDCWD), path.as_c_str().as_ptr()).build();
+    let sqe = opcode::UnlinkAt::new(types::Fd(libc::AT_FDCWD), path.as_c_str().as_ptr())
+        .flags(flags)
+        .build();
     submit(sqe)?.await.map(|_| ())
 }
 

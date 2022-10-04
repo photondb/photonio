@@ -7,10 +7,6 @@ use std::fmt;
 pub struct Metadata(libc::statx);
 
 impl Metadata {
-    pub(super) fn new(stat: libc::statx) -> Self {
-        Self(stat)
-    }
-
     /// Returns the size of the file this metadata is for.
     ///
     /// See also [`std::fs::Metadata::len`].
@@ -44,6 +40,13 @@ impl Metadata {
 impl Metadata {
     fn is_type(&self, ty: libc::mode_t) -> bool {
         (self.0.stx_mode as u32 & libc::S_IFMT) == ty
+    }
+}
+
+#[doc(hidden)]
+impl From<libc::statx> for Metadata {
+    fn from(stat: libc::statx) -> Self {
+        Self(stat)
     }
 }
 

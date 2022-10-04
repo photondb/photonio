@@ -1,6 +1,7 @@
 use std::{
     future::Future,
     mem::ManuallyDrop,
+    panic,
     pin::Pin,
     ptr::NonNull,
     sync::{Arc, Mutex},
@@ -9,7 +10,7 @@ use std::{
 
 use futures::task::{waker_ref, ArcWake};
 
-use super::{JoinError, Schedule, Task};
+use super::{Result, Schedule, Task};
 
 #[repr(C)]
 pub(super) struct RawTask {
@@ -44,11 +45,7 @@ impl RawTask {
         (self.vtable.poll)(this)
     }
 
-    pub(super) unsafe fn join<T>(
-        &self,
-        this: NonNull<RawTask>,
-        waker: &Waker,
-    ) -> Poll<Result<T, JoinError>> {
+    pub(super) unsafe fn join<T>(&self, this: NonNull<RawTask>, waker: &Waker) -> Poll<Result<T>> {
         let mut result = Poll::Pending;
         (self.vtable.join)(this, waker, &mut result as *mut _ as *mut _);
         result
@@ -85,7 +82,6 @@ where
     S: Schedule,
 {
     head: RawTask,
-    // TODO: optimize this lock
     core: Mutex<Core<F, S>>,
 }
 
@@ -129,16 +125,16 @@ where
     F: Future,
     S: Schedule,
 {
-    state: State<F>,
+    state: State<F::Output>,
     waker: Option<Waker>,
     future: F,
     schedule: S,
 }
 
-enum State<F: Future> {
+enum State<T> {
     Init,
     Detached,
-    Finished(F::Output),
+    Finished(Result<T>),
     Consumed,
 }
 
@@ -147,15 +143,15 @@ where
     F: Future,
     S: Schedule,
 {
-    fn join(&mut self, waker: &Waker) -> Poll<Result<F::Output, JoinError>> {
+    fn join(&mut self, waker: &Waker) -> Poll<Result<F::Output>> {
         match std::mem::replace(&mut self.state, State::Init) {
             State::Init => {
                 self.waker = Some(waker.clone());
                 Poll::Pending
             }
-            State::Finished(output) => {
+            State::Finished(result) => {
                 self.state = State::Consumed;
-                Poll::Ready(Ok(output))
+                Poll::Ready(result)
             }
             _ => unreachable!(),
         }
@@ -174,10 +170,10 @@ where
         }
     }
 
-    fn finish(&mut self, output: F::Output) {
+    fn finish(&mut self, result: Result<F::Output>) {
         match std::mem::replace(&mut self.state, State::Init) {
             State::Init => {
-                self.state = State::Finished(output);
+                self.state = State::Finished(result);
                 if let Some(waker) = self.waker.take() {
                     waker.wake();
                 }
@@ -245,8 +241,11 @@ where
     let mut cx = Context::from_waker(&waker);
     let mut core = this.core.lock().unwrap();
     let future = Pin::new_unchecked(&mut core.future);
-    if let Poll::Ready(output) = future.poll(&mut cx) {
-        core.finish(output);
+    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| future.poll(&mut cx)));
+    match result {
+        Ok(Poll::Pending) => {}
+        Ok(Poll::Ready(output)) => core.finish(Ok(output)),
+        Err(err) => core.finish(Err(err)),
     }
 }
 

@@ -116,7 +116,7 @@ impl Worker {
     pub(super) fn schedule(&self, task: Task) -> Result<()> {
         self.tx
             .send(Message::Schedule(task))
-            .map_err(|_| Error::new(ErrorKind::Other, "send message to worker failed"))?;
+            .map_err(|_| Error::new(ErrorKind::Other, "failed to send message to worker"))?;
         self.unpark.unpark()
     }
 }

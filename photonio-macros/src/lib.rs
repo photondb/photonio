@@ -11,25 +11,27 @@ use syn::parse::Parser;
 /// # Examples
 ///
 /// ```no_run
-/// use photonio::fs::File;
+/// use photonio::{fs::File, io::Write};
 ///
 /// #[photonio::main(num_threads = 4)]
 /// async fn main() -> std::io::Result<()> {
 ///     let mut file = File::create("hello.txt").await?;
 ///     file.write(b"hello").await?;
+///     Ok(())
 /// }
 /// ```
 ///
 /// This is equivalent to:
 ///
 /// ```no_run
-/// use photonio::{fs::File, runtime::Builder};
+/// use photonio::{fs::File, io::Write, runtime::Builder};
 ///
 /// fn main() -> std::io::Result<()> {
 ///     let rt = Builder::new().num_threads(4).build()?;
 ///     rt.block_on(async {
 ///         let mut file = File::create("hello.txt").await?;
 ///         file.write(b"hello").await?;
+///         Ok(())
 ///     })
 /// }
 /// ```

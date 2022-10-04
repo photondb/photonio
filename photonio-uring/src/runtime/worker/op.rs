@@ -1,7 +1,6 @@
 use std::{
     future::Future,
     io::Result,
-    mem,
     pin::Pin,
     sync::{Arc, Mutex},
     task::{Context, Poll, Waker},
@@ -26,7 +25,7 @@ impl OpTable {
     fn poll(&mut self, index: usize, waker: &Waker) -> Poll<Result<u32>> {
         let mut table = self.0.lock().unwrap();
         let state = table.get_mut(index).unwrap();
-        match mem::take(state) {
+        match std::mem::take(state) {
             OpState::Init => {
                 *state = OpState::Polled(waker.clone());
                 Poll::Pending
@@ -47,7 +46,7 @@ impl OpTable {
     pub(super) fn complete(&mut self, index: usize, result: Result<u32>) {
         let mut table = self.0.lock().unwrap();
         let state = table.get_mut(index).unwrap();
-        match mem::take(state) {
+        match std::mem::take(state) {
             OpState::Init => {
                 *state = OpState::Completed(result);
             }

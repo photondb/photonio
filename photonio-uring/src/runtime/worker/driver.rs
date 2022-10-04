@@ -57,8 +57,9 @@ impl Driver {
 
     pub(super) fn schedule(&mut self, op: squeue::Entry) -> Result<OpHandle> {
         let handle = self.table.insert();
-        let sqe = op.user_data(handle.index() as _);
-        unsafe { self.push(sqe)? };
+        let token = handle.index() as u64;
+        assert!(token != Self::UNPARK_TOKEN);
+        unsafe { self.push(op.user_data(token))? };
         Ok(handle)
     }
 }
@@ -120,7 +121,11 @@ impl Unpark {
     pub(super) fn unpark(&self) -> Result<()> {
         let buf = 1u64.to_ne_bytes();
         let res = unsafe { libc::write(self.0.as_raw_fd(), buf.as_ptr() as _, buf.len() as _) };
-        syscall_result(res as _).map(|_| ())
+        if res >= 0 {
+            Ok(())
+        } else {
+            Err(Error::last_os_error())
+        }
     }
 }
 

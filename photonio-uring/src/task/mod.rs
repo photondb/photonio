@@ -2,6 +2,7 @@
 //!
 //! This module is similar to [`std::thread`], but for asynchronous tasks instead of threads.
 
+pub use std::thread::Result;
 use std::{
     future::Future,
     ptr::NonNull,
@@ -14,7 +15,7 @@ mod raw;
 use raw::RawTask;
 
 mod join;
-pub use join::{JoinError, JoinHandle};
+pub use join::JoinHandle;
 
 mod yield_now;
 pub use yield_now::yield_now;
@@ -47,7 +48,7 @@ impl Task {
         unsafe { self.raw().poll(self.0) }
     }
 
-    pub(super) fn join<T>(&self, waker: &Waker) -> Poll<Result<T, JoinError>> {
+    pub(super) fn join<T>(&self, waker: &Waker) -> Poll<Result<T>> {
         unsafe { self.raw().join(self.0, waker) }
     }
 

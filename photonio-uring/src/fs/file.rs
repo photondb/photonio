@@ -15,7 +15,7 @@ use crate::{
 ///
 /// This type is an async version of [`std::fs::File`].
 #[derive(Debug)]
-pub struct File(pub(super) OwnedFd);
+pub struct File(OwnedFd);
 
 impl File {
     /// Opens a file in read-only mode.
@@ -43,7 +43,7 @@ impl File {
     ///
     /// See also [`std::fs::File::metadata`].
     pub async fn metadata(&self) -> Result<Metadata> {
-        syscall::fstat(self.fd()).await.map(Metadata::new)
+        syscall::fstat(self.fd()).await.map(Metadata::from)
     }
 
     /// Synchronizes all modified data of this file to disk.
@@ -65,6 +65,13 @@ impl File {
 impl File {
     fn fd(&self) -> BorrowedFd<'_> {
         self.0.as_fd()
+    }
+}
+
+#[doc(hidden)]
+impl From<OwnedFd> for File {
+    fn from(fd: OwnedFd) -> Self {
+        Self(fd)
     }
 }
 
@@ -104,7 +111,7 @@ impl ReadAt for File {
     type ReadAt<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn read_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadAt<'a> {
-        syscall::pread(self.fd(), buf, pos as _)
+        syscall::pread(self.fd(), buf, pos.try_into().unwrap())
     }
 }
 
@@ -120,6 +127,6 @@ impl WriteAt for File {
     type WriteAt<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn write_at<'a>(&'a self, buf: &'a [u8], pos: u64) -> Self::WriteAt<'a> {
-        syscall::pwrite(self.0.as_fd(), buf, pos as _)
+        syscall::pwrite(self.0.as_fd(), buf, pos.try_into().unwrap())
     }
 }

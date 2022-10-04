@@ -6,6 +6,7 @@ use crate::runtime::syscall;
 /// Options to configure how a file is opened.
 ///
 /// This type is an async version of [`std::fs::OpenOptions`].
+#[derive(Debug)]
 pub struct OpenOptions {
     read: bool,
     write: bool,
@@ -66,8 +67,9 @@ impl OpenOptions {
 
     /// See also [`std::fs::OpenOptions::open`].
     pub async fn open<P: AsRef<Path>>(&self, path: P) -> Result<File> {
-        let fd = syscall::open(path.as_ref(), self.open_flags(), 0o666).await?;
-        Ok(File(fd))
+        syscall::open(path.as_ref(), self.open_flags(), 0o666)
+            .await
+            .map(File::from)
     }
 }
 
@@ -92,5 +94,11 @@ impl OpenOptions {
             }
         }
         flags | libc::O_CLOEXEC
+    }
+}
+
+impl Default for OpenOptions {
+    fn default() -> Self {
+        Self::new()
     }
 }

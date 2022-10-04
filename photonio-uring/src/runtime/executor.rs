@@ -44,6 +44,7 @@ impl Executor {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
+        // Dispatches tasks in a round-robin fashion.
         let id = self.next_id.fetch_add(1, Ordering::Relaxed);
         let index = (id % self.workers.len() as u64) as usize;
         let (task, handle) = Task::new(id, future, self.shared.clone());

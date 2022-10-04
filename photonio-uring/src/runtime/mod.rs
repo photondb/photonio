@@ -20,7 +20,7 @@ use executor::Executor;
 pub struct Runtime(Arc<Executor>);
 
 impl Runtime {
-    /// Creates a new runtime with default options.
+    /// Creates a runtime with default options.
     pub fn new() -> Result<Self> {
         Builder::new().build()
     }
@@ -31,12 +31,13 @@ impl Runtime {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
+        // If the task panics, propagates the panic to the caller.
         CURRENT
             .set(&self.0, || block_on(self.spawn(future)))
             .unwrap()
     }
 
-    /// Spawns a future onto the runtime.
+    /// Spawns a future onto this runtime.
     pub fn spawn<F>(&self, future: F) -> JoinHandle<F::Output>
     where
         F: Future + Send + 'static,

@@ -19,15 +19,15 @@ impl Builder {
         }
     }
 
-    /// Sets the number of threads.
+    /// Sets the number of worker threads to execute tasks.
     ///
-    /// The default value is the number of CPU cores.
+    /// The default value is set to the number of CPU cores.
     pub fn num_threads(mut self, num_threads: usize) -> Self {
         self.num_threads = num_threads;
         self
     }
 
-    /// Sets the stack size for each thread.
+    /// Sets the stack size for each worker thread.
     ///
     /// The default value is 2 MiB.
     pub fn thread_stack_size(mut self, thread_stack_size: usize) -> Self {
@@ -43,9 +43,15 @@ impl Builder {
         self
     }
 
-    /// Creates a runtime with the options.
+    /// Creates a runtime with the specified options.
     pub fn build(self) -> Result<Runtime> {
         let pool = Executor::new(self)?;
         Ok(Runtime(Arc::new(pool)))
+    }
+}
+
+impl Default for Builder {
+    fn default() -> Self {
+        Self::new()
     }
 }
