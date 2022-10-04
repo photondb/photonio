@@ -14,12 +14,7 @@
 //! [tokio]: https://docs.rs/tokio
 
 #![warn(missing_docs, unreachable_pub)]
-#![feature(
-    pin_macro,
-    io_error_more,
-    type_alias_impl_trait,
-    generic_associated_types
-)]
+#![feature(pin_macro, io_error_more, type_alias_impl_trait)]
 
 pub use photonio_macros::{main, test};
 #[cfg(any(not(target_os = "linux"), feature = "tokio"))]

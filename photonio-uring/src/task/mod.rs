@@ -5,14 +5,15 @@
 pub use std::thread::Result;
 use std::{
     future::Future,
-    ptr::NonNull,
+    mem::ManuallyDrop,
+    sync::Arc,
     task::{Poll, Waker},
 };
 
 pub use crate::runtime::spawn;
 
 mod raw;
-use raw::RawTask;
+use raw::{Head, Suit};
 
 mod join;
 pub use join::JoinHandle;
@@ -25,41 +26,46 @@ pub use yield_now::yield_now;
 pub struct TaskId(u64);
 
 /// A handle to an asynchronous task.
-pub struct Task(NonNull<RawTask>);
+pub struct Task(ManuallyDrop<Arc<Head>>);
 
 impl Task {
     pub(crate) fn new<F, S>(id: u64, future: F, schedule: S) -> (Self, JoinHandle<F::Output>)
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,
-        S: Schedule + Send + 'static,
+        S: Schedule + Send,
     {
-        let task = Self(RawTask::new(id, future, schedule));
-        let handle = JoinHandle::new(task.clone());
+        let suit = Arc::new(Suit::new(id, future, schedule));
+        let task = Self::from_suit(suit.clone());
+        let handle = JoinHandle::new(Self::from_suit(suit));
         (task, handle)
+    }
+
+    fn from_suit<F, S>(suit: Arc<Suit<F, S>>) -> Self
+    where
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
+        S: Schedule + Send,
+    {
+        let head = unsafe { Arc::from_raw(Arc::into_raw(suit) as *const Head) };
+        Self(ManuallyDrop::new(head))
     }
 
     /// Returns the unique identifier of this task.
     pub fn id(&self) -> TaskId {
-        TaskId(self.raw().id())
+        TaskId(self.0.id())
     }
 
     pub(crate) fn poll(&self) {
-        unsafe { self.raw().poll(self.0) }
+        unsafe { self.0.poll(&self.0) }
     }
 
     pub(super) fn join<T>(&self, waker: &Waker) -> Poll<Result<T>> {
-        unsafe { self.raw().join(self.0, waker) }
+        unsafe { self.0.join(&self.0, waker) }
     }
 
     pub(super) fn detach(&self) {
-        unsafe { self.raw().detach(self.0) }
-    }
-}
-
-impl Task {
-    fn raw(&self) -> &RawTask {
-        unsafe { self.0.as_ref() }
+        unsafe { self.0.detach(&self.0) }
     }
 }
 
@@ -67,13 +73,7 @@ unsafe impl Send for Task {}
 
 impl Drop for Task {
     fn drop(&mut self) {
-        unsafe { self.raw().drop(self.0) }
-    }
-}
-
-impl Clone for Task {
-    fn clone(&self) -> Self {
-        unsafe { Self(self.raw().clone(self.0)) }
+        unsafe { self.0.as_ref().drop(&self.0) }
     }
 }
 

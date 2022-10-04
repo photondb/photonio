@@ -3,7 +3,6 @@ use std::{
     mem::ManuallyDrop,
     panic,
     pin::Pin,
-    ptr::NonNull,
     sync::{Arc, Mutex},
     task::{Context, Poll, Waker},
 };
@@ -13,87 +12,54 @@ use futures::task::{waker_ref, ArcWake};
 use super::{Result, Schedule, Task};
 
 #[repr(C)]
-pub(super) struct RawTask {
+pub(super) struct Head {
     id: u64,
     vtable: &'static VTable,
 }
 
-impl RawTask {
-    pub(super) fn new<F, S>(id: u64, future: F, schedule: S) -> NonNull<RawTask>
-    where
-        F: Future + Send + 'static,
-        F::Output: Send + 'static,
-        S: Schedule + Send + 'static,
-    {
-        let suit = Arc::new(Suit::new(id, future, schedule));
-        unsafe { Self::from_suit(suit) }
-    }
-
+impl Head {
     pub(super) fn id(&self) -> u64 {
         self.id
     }
 
-    pub(super) unsafe fn drop(&self, this: NonNull<RawTask>) {
-        (self.vtable.drop)(this)
+    pub(super) unsafe fn drop(&self, this: &Arc<Head>) {
+        (self.vtable.drop)(this);
     }
 
-    pub(super) unsafe fn clone(&self, this: NonNull<RawTask>) -> NonNull<RawTask> {
-        (self.vtable.clone)(this)
+    pub(super) unsafe fn poll(&self, this: &Arc<Head>) {
+        (self.vtable.poll)(this);
     }
 
-    pub(super) unsafe fn poll(&self, this: NonNull<RawTask>) {
-        (self.vtable.poll)(this)
-    }
-
-    pub(super) unsafe fn join<T>(&self, this: NonNull<RawTask>, waker: &Waker) -> Poll<Result<T>> {
+    pub(super) unsafe fn join<T>(&self, this: &Arc<Head>, waker: &Waker) -> Poll<Result<T>> {
         let mut result = Poll::Pending;
         (self.vtable.join)(this, waker, &mut result as *mut _ as *mut _);
         result
     }
 
-    pub(super) unsafe fn detach(&self, this: NonNull<RawTask>) {
-        (self.vtable.detach)(this)
-    }
-}
-
-impl RawTask {
-    unsafe fn from_suit<F, S>(handle: Arc<Suit<F, S>>) -> NonNull<RawTask>
-    where
-        F: Future,
-        S: Schedule,
-    {
-        let ptr = Arc::into_raw(handle);
-        NonNull::new_unchecked(ptr as *mut RawTask)
-    }
-
-    unsafe fn into_suit<F, S>(this: NonNull<RawTask>) -> Arc<Suit<F, S>>
-    where
-        F: Future,
-        S: Schedule,
-    {
-        Arc::from_raw(this.as_ptr() as *mut _)
+    pub(super) unsafe fn detach(&self, this: &Arc<Head>) {
+        (self.vtable.detach)(this);
     }
 }
 
 #[repr(C)]
-struct Suit<F, S>
+pub(super) struct Suit<F, S>
 where
     F: Future,
     S: Schedule,
 {
-    head: RawTask,
+    head: Head,
     core: Mutex<Core<F, S>>,
 }
 
 impl<F, S> Suit<F, S>
 where
-    F: Future + Send,
-    F::Output: Send,
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
     S: Schedule + Send,
 {
-    fn new(id: u64, future: F, schedule: S) -> Self {
+    pub(super) fn new(id: u64, future: F, schedule: S) -> Self {
         Self {
-            head: RawTask {
+            head: Head {
                 id,
                 vtable: VTable::new::<F, S>(),
             },
@@ -109,14 +75,14 @@ where
 
 impl<F, S> ArcWake for Suit<F, S>
 where
-    F: Future + Send,
-    F::Output: Send,
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
     S: Schedule + Send,
 {
     fn wake_by_ref(this: &Arc<Self>) {
-        let task = unsafe { RawTask::from_suit(this.clone()) };
+        let task = Task::from_suit(this.clone());
         let core = this.core.lock().unwrap();
-        core.schedule.schedule(Task(task));
+        core.schedule.schedule(task);
     }
 }
 
@@ -187,23 +153,21 @@ where
 }
 
 struct VTable {
-    drop: unsafe fn(NonNull<RawTask>),
-    clone: unsafe fn(NonNull<RawTask>) -> NonNull<RawTask>,
-    poll: unsafe fn(NonNull<RawTask>),
-    join: unsafe fn(NonNull<RawTask>, &Waker, *mut ()),
-    detach: unsafe fn(NonNull<RawTask>),
+    drop: unsafe fn(&Arc<Head>),
+    poll: unsafe fn(&Arc<Head>),
+    join: unsafe fn(&Arc<Head>, &Waker, *mut ()),
+    detach: unsafe fn(&Arc<Head>),
 }
 
 impl VTable {
     fn new<F, S>() -> &'static VTable
     where
-        F: Future + Send,
-        F::Output: Send,
+        F: Future + Send + 'static,
+        F::Output: Send + 'static,
         S: Schedule + Send,
     {
         &VTable {
             drop: drop::<F, S>,
-            clone: clone::<F, S>,
             poll: poll::<F, S>,
             join: join::<F, S>,
             detach: detach::<F, S>,
@@ -211,35 +175,32 @@ impl VTable {
     }
 }
 
-unsafe fn drop<F, S>(raw: NonNull<RawTask>)
+unsafe fn suit<F, S>(head: &Arc<Head>) -> Arc<Suit<F, S>>
 where
     F: Future,
     S: Schedule,
 {
-    RawTask::into_suit::<F, S>(raw);
+    Arc::from_raw(Arc::as_ptr(head) as _)
 }
 
-unsafe fn clone<F, S>(raw: NonNull<RawTask>) -> NonNull<RawTask>
+unsafe fn drop<F, S>(head: &Arc<Head>)
 where
     F: Future,
     S: Schedule,
 {
-    let this = RawTask::into_suit::<F, S>(raw);
-    let clone = RawTask::from_suit(this.clone());
-    std::mem::forget(this);
-    clone
+    suit::<F, S>(head);
 }
 
-unsafe fn poll<F, S>(raw: NonNull<RawTask>)
+unsafe fn poll<F, S>(head: &Arc<Head>)
 where
-    F: Future + Send,
-    F::Output: Send,
+    F: Future + Send + 'static,
+    F::Output: Send + 'static,
     S: Schedule + Send,
 {
-    let this = ManuallyDrop::new(RawTask::into_suit::<F, S>(raw));
-    let waker = waker_ref(&this);
+    let suit = ManuallyDrop::new(suit::<F, S>(head));
+    let waker = waker_ref(&suit);
     let mut cx = Context::from_waker(&waker);
-    let mut core = this.core.lock().unwrap();
+    let mut core = suit.core.lock().unwrap();
     let future = Pin::new_unchecked(&mut core.future);
     let result = panic::catch_unwind(panic::AssertUnwindSafe(|| future.poll(&mut cx)));
     match result {
@@ -249,22 +210,22 @@ where
     }
 }
 
-unsafe fn join<F, S>(raw: NonNull<RawTask>, waker: &Waker, result: *mut ())
+unsafe fn join<F, S>(head: &Arc<Head>, waker: &Waker, result: *mut ())
 where
     F: Future,
     S: Schedule,
 {
-    let this = ManuallyDrop::new(RawTask::into_suit::<F, S>(raw));
-    let mut core = this.core.lock().unwrap();
+    let suit = ManuallyDrop::new(suit::<F, S>(head));
+    let mut core = suit.core.lock().unwrap();
     *(result as *mut Poll<_>) = core.join(waker);
 }
 
-unsafe fn detach<F, S>(raw: NonNull<RawTask>)
+unsafe fn detach<F, S>(head: &Arc<Head>)
 where
     F: Future,
     S: Schedule,
 {
-    let this = ManuallyDrop::new(RawTask::into_suit::<F, S>(raw));
-    let mut core = this.core.lock().unwrap();
+    let suit = ManuallyDrop::new(suit::<F, S>(head));
+    let mut core = suit.core.lock().unwrap();
     core.detach();
 }

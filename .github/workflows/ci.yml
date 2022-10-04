@@ -4,9 +4,9 @@ on:
   push:
   pull_request:
 
-concurrency:
-  group: ${{ github.ref }}
-  cancel-in-progress: true
+env:
+  RUSTFLAGS: -Dwarnings
+  RUST_BACKTRACE: 1
 
 jobs:
   style:
@@ -24,28 +24,37 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: clippy
-        args: --tests --benches --examples --all-features -- -D warnings
+        args: --tests --benches --examples --all-features
 
-  tests-on-linux:
+  tests:
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
       uses: actions/checkout@v2
     - uses: Swatinem/rust-cache@v1
-    - name: Run unit tests
+    - name: Run tests
       uses: actions-rs/cargo@v1
       with:
         command: test
-    - name: Run unit tests with tokio
+    - name: Run tests with tokio
       uses: actions-rs/cargo@v1
       with:
         command: test
         args: --features tokio
-    - name: Run miri tests
+    - name: Run tests with asan
       uses: actions-rs/cargo@v1
       with:
-        command: miri
-        args: test
+        command: test
+        args: --target x86_64-unknown-linux-gnu
+      env:
+        RUSTFLAGS: -Zsanitizer=address
+    - name: Run tests with msan
+      uses: actions-rs/cargo@v1
+      with:
+        command: test
+        args: -Zbuild-std --target x86_64-unknown-linux-gnu
+      env:
+        RUSTFLAGS: -Zsanitizer=memory -Zsanitizer-memory-track-origins
 
   tests-on-macos:
     runs-on: macos-latest
