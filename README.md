@@ -22,12 +22,13 @@ PhotonIO is an efficient runtime for asynchronous applications in Rust.
 ## Examples
 
 ```rust
-use photonio::{fs::File, io::Write};
+use photonio::{fs::File, io::Write, io::WriteAt};
 
 #[photonio::main]
 async fn main() -> std::io::Result<()> {
     let mut file = File::create("hello.txt").await?;
     file.write(b"hello").await?;
+    file.write_at(b"world", 5).await?;
     Ok(())
 }
 ```

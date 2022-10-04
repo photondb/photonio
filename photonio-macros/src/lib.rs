@@ -11,12 +11,16 @@ use syn::parse::Parser;
 /// # Examples
 ///
 /// ```no_run
-/// use photonio::{fs::File, io::Write};
+/// use photonio::{
+///     fs::File,
+///     io::{Write, WriteAt},
+/// };
 ///
 /// #[photonio::main(num_threads = 4)]
 /// async fn main() -> std::io::Result<()> {
 ///     let mut file = File::create("hello.txt").await?;
 ///     file.write(b"hello").await?;
+///     file.write_at(b"world", 5).await?;
 ///     Ok(())
 /// }
 /// ```
