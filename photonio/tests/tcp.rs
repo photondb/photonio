@@ -1,3 +1,4 @@
+use log::trace;
 use photonio::{
     io::{Read, Write},
     net::{SocketAddr, TcpListener, TcpStream},
@@ -8,14 +9,16 @@ use photonio::{
 async fn server() {
     let server = TcpListener::bind("127.0.0.1:1234").await.unwrap();
     let server_addr = server.local_addr().unwrap();
+    trace!("server {:?}", server_addr);
     let mut tasks = Vec::new();
     let num_conns = 4;
     for i in 0..num_conns {
-        let handle = task::spawn(send(server_addr, i));
-        tasks.push(handle);
+        let task = task::spawn(send(server_addr, i));
+        tasks.push(task);
     }
     for _ in 0..num_conns {
-        let (stream, _) = server.accept().await.unwrap();
+        let (stream, stream_addr) = server.accept().await.unwrap();
+        trace!("stream {:?}", stream_addr);
         let handle = task::spawn(recv(stream));
         tasks.push(handle);
     }
@@ -30,7 +33,6 @@ async fn send(addr: SocketAddr, byte: u8) {
 }
 
 async fn recv(mut stream: TcpStream) {
-    let mut buf = [0; 1];
-    stream.read(&mut buf).await.unwrap();
-    println!("recv: {}", buf[0]);
+    let mut byte = [0; 1];
+    stream.read(&mut byte).await.unwrap();
 }

@@ -1,8 +1,12 @@
-use std::{io::Result, net::SocketAddr};
+use std::{future::Future, io::Result, net::SocketAddr};
 
-use tokio::net;
+use tokio::{
+    io::{AsyncReadExt, AsyncWriteExt},
+    net,
+};
 
 use super::ToSocketAddrs;
+use crate::io::{Read, Write};
 
 #[derive(Debug)]
 pub struct TcpListener(net::TcpListener);
@@ -61,5 +65,21 @@ impl TcpStream {
 
     pub fn set_nodelay(&self, nodelay: bool) -> Result<()> {
         self.0.set_nodelay(nodelay)
+    }
+}
+
+impl Read for TcpStream {
+    type Read<'a> = impl Future<Output = Result<usize>> + 'a;
+
+    fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Self::Read<'a> {
+        self.0.read(buf)
+    }
+}
+
+impl Write for TcpStream {
+    type Write<'a> = impl Future<Output = Result<usize>> + 'a;
+
+    fn write<'a>(&'a mut self, buf: &'a [u8]) -> Self::Write<'a> {
+        self.0.write(buf)
     }
 }
