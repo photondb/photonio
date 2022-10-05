@@ -1,6 +1,6 @@
-use std::{io::Result, sync::Arc};
+use std::io::Result;
 
-use super::{Executor, Runtime};
+use super::{Runtime, Shared};
 
 /// Builds a [`Runtime`] with custom options.
 pub struct Builder {
@@ -45,8 +45,8 @@ impl Builder {
 
     /// Creates a runtime with the specified options.
     pub fn build(self) -> Result<Runtime> {
-        let pool = Executor::new(self)?;
-        Ok(Runtime(Arc::new(pool)))
+        let shared = Shared::new(self)?;
+        Ok(Runtime(shared))
     }
 }
 

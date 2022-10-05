@@ -6,7 +6,11 @@ use std::{
 
 use io_uring::{opcode, squeue, types, IoUring};
 
-use super::{OpHandle, OpTable};
+mod op;
+pub(super) use op::Op;
+
+mod optable;
+use optable::OpTable;
 
 pub(super) struct Driver {
     io: IoUring,
@@ -16,18 +20,21 @@ pub(super) struct Driver {
 }
 
 impl Driver {
-    pub(super) fn new() -> Result<Self> {
+    pub(super) fn new(unpark: Unpark) -> Result<Self> {
         let io = IoUring::new(4096)?;
-        let eventfd = unsafe {
-            let fd = syscall_result(libc::eventfd(0, libc::EFD_CLOEXEC))?;
-            OwnedFd::from_raw_fd(fd as _)
-        };
         Ok(Self {
             io,
             table: OpTable::new(),
-            eventfd: Arc::new(eventfd),
+            eventfd: unpark.0,
             eventbuf: [0; 8],
         })
+    }
+
+    pub(super) unsafe fn add(&mut self, sqe: squeue::Entry) -> Result<Op> {
+        let index = self.table.add();
+        assert!(index as u64 != Self::UNPARK_TOKEN);
+        self.push(sqe.user_data(index as u64))?;
+        Ok(Op::new(self.table.clone(), index))
     }
 
     pub(super) fn tick(&mut self) -> Result<()> {
@@ -49,18 +56,6 @@ impl Driver {
         self.submit_and_wait(1)?;
         self.pull();
         Ok(())
-    }
-
-    pub(super) fn unpark(&self) -> Unpark {
-        Unpark(self.eventfd.clone())
-    }
-
-    pub(super) fn schedule(&mut self, op: squeue::Entry) -> Result<OpHandle> {
-        let handle = self.table.insert();
-        let token = handle.index() as u64;
-        assert!(token != Self::UNPARK_TOKEN);
-        unsafe { self.push(op.user_data(token))? };
-        Ok(handle)
     }
 }
 
@@ -118,10 +113,18 @@ impl Driver {
 pub(super) struct Unpark(Arc<OwnedFd>);
 
 impl Unpark {
+    pub(super) fn new() -> Result<Self> {
+        let fd = unsafe {
+            let fd = syscall_result(libc::eventfd(0, libc::EFD_CLOEXEC))?;
+            OwnedFd::from_raw_fd(fd as _)
+        };
+        Ok(Self(Arc::new(fd)))
+    }
+
     pub(super) fn unpark(&self) -> Result<()> {
         let buf = 1u64.to_ne_bytes();
-        let res = unsafe { libc::write(self.0.as_raw_fd(), buf.as_ptr() as _, buf.len() as _) };
-        if res >= 0 {
+        let ret = unsafe { libc::write(self.0.as_raw_fd(), buf.as_ptr() as _, buf.len() as _) };
+        if ret >= 0 {
             Ok(())
         } else {
             Err(Error::last_os_error())

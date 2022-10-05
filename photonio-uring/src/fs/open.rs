@@ -93,7 +93,7 @@ impl OpenOptions {
                 flags |= libc::O_TRUNC;
             }
         }
-        flags | libc::O_CLOEXEC
+        flags
     }
 }
 

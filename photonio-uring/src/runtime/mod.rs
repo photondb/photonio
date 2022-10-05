@@ -1,23 +1,26 @@
 //! The PhotonIO runtime.
 
-use std::{future::Future, io::Result, sync::Arc};
+use std::{future::Future, io::Result};
 
 use futures::executor::block_on;
-use scoped_tls::scoped_thread_local;
 
 use crate::task::JoinHandle;
 
 mod builder;
 pub use builder::Builder;
 
-mod worker;
-pub(crate) use worker::syscall;
+mod shared;
+use shared::Shared;
 
-mod executor;
-use executor::Executor;
+mod driver;
+
+mod worker;
+pub use worker::spawn;
+
+pub(crate) mod syscall;
 
 /// The PhotonIO runtime.
-pub struct Runtime(Arc<Executor>);
+pub struct Runtime(Shared);
 
 impl Runtime {
     /// Creates a runtime with default options.
@@ -32,9 +35,7 @@ impl Runtime {
         F::Output: Send + 'static,
     {
         // If the task panics, propagates the panic to the caller.
-        CURRENT
-            .set(&self.0, || block_on(self.spawn(future)))
-            .unwrap()
+        block_on(self.spawn(future)).unwrap()
     }
 
     /// Spawns a future onto this runtime.
@@ -43,17 +44,6 @@ impl Runtime {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
-        self.0.spawn(future)
+        self.0.schedule(future)
     }
-}
-
-scoped_thread_local!(static CURRENT: Arc<Executor>);
-
-/// Spawns a task onto the current runtime.
-pub fn spawn<F>(future: F) -> JoinHandle<F::Output>
-where
-    F: Future + Send + 'static,
-    F::Output: Send + 'static,
-{
-    CURRENT.with(|exec| exec.spawn(future))
 }

@@ -14,13 +14,13 @@ use std::{
 use io_uring::{opcode, types};
 use socket2::SockAddr;
 
-use super::submit;
+use super::worker::submit;
 
 /// See also `man open.2`.
 pub(crate) async fn open(path: &Path, flags: libc::c_int, mode: libc::mode_t) -> Result<OwnedFd> {
     let path = new_path_str(path)?;
     let sqe = opcode::OpenAt::new(types::Fd(libc::AT_FDCWD), path.as_c_str().as_ptr())
-        .flags(flags)
+        .flags(flags | libc::O_CLOEXEC)
         .mode(mode)
         .build();
     submit(sqe)?
@@ -104,25 +104,19 @@ pub(crate) async fn rename(oldpath: &Path, newpath: &Path) -> Result<()> {
 }
 
 /// See also `man accept.2`.
-pub(crate) async fn accept(fd: BorrowedFd<'_>, flags: libc::c_int) -> Result<(OwnedFd, SockAddr)> {
+pub(crate) async fn accept(fd: BorrowedFd<'_>) -> Result<(OwnedFd, SockAddr)> {
     let fd = types::Fd(fd.as_raw_fd());
-    let mut addr = unsafe { mem::zeroed() };
-    let mut addr_len = mem::size_of::<libc::sockaddr_storage>() as libc::socklen_t;
+    let mut addr: libc::sockaddr_storage = unsafe { mem::zeroed() };
+    let mut addr_len = mem::size_of_val(&addr) as libc::socklen_t;
     let sqe = opcode::Accept::new(fd, &mut addr as *mut _ as *mut _, &mut addr_len)
-        .flags(flags)
+        .flags(libc::O_CLOEXEC)
         .build();
-    let (_, sock_addr) = unsafe {
-        SockAddr::init(|a, l| {
-            *a = addr;
-            *l = addr_len;
-            Ok(())
-        })
-        .unwrap()
-    };
-    submit(sqe)?.await.map(|fd| {
-        let conn = unsafe { OwnedFd::from_raw_fd(fd as _) };
-        (conn, sock_addr)
-    })
+    let conn = submit(sqe)?.await?;
+    unsafe {
+        let conn = OwnedFd::from_raw_fd(conn as _);
+        let sock_addr = SockAddr::new(addr, addr_len);
+        Ok((conn, sock_addr))
+    }
 }
 
 /// See also `man connect.2`.

@@ -1,5 +1,5 @@
 use std::{
-    future::Future,
+    future::{ready, Future},
     io::Result,
     os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd},
     path::Path,
@@ -7,7 +7,7 @@ use std::{
 
 use super::{Metadata, OpenOptions};
 use crate::{
-    io::{Read, ReadAt, Write, WriteAt},
+    io::{Read, ReadAt, Seek, SeekFrom, Write, WriteAt},
     runtime::syscall,
 };
 
@@ -96,6 +96,25 @@ impl FromRawFd for File {
 impl IntoRawFd for File {
     fn into_raw_fd(self) -> RawFd {
         self.0.into_raw_fd()
+    }
+}
+
+impl Seek for File {
+    type Seek = impl Future<Output = Result<u64>>;
+
+    fn seek(&mut self, pos: SeekFrom) -> Self::Seek {
+        let (offset, whence) = match pos {
+            SeekFrom::Start(offset) => (offset as i64, libc::SEEK_SET),
+            SeekFrom::End(offset) => (offset, libc::SEEK_END),
+            SeekFrom::Current(offset) => (offset, libc::SEEK_CUR),
+        };
+        let ret = unsafe { libc::lseek(self.0.as_raw_fd(), offset, whence) };
+        let res = if ret >= 0 {
+            Ok(ret as u64)
+        } else {
+            Err(std::io::Error::last_os_error())
+        };
+        ready(res)
     }
 }
 

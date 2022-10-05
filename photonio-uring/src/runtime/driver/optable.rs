@@ -1,12 +1,18 @@
 use std::{
-    future::Future,
     io::Result,
-    pin::Pin,
     sync::{Arc, Mutex},
-    task::{Context, Poll, Waker},
+    task::{Poll, Waker},
 };
 
 use slab::Slab;
+
+#[derive(Default)]
+enum OpState {
+    #[default]
+    Init,
+    Polled(Waker),
+    Completed(Result<u32>),
+}
 
 #[derive(Clone, Default)]
 pub(super) struct OpTable(Arc<Mutex<Slab<OpState>>>);
@@ -16,13 +22,12 @@ impl OpTable {
         Self::default()
     }
 
-    pub(super) fn insert(&mut self) -> OpHandle {
+    pub(super) fn add(&mut self) -> usize {
         let mut table = self.0.lock().unwrap();
-        let index = table.insert(OpState::default());
-        OpHandle::new(self.clone(), index)
+        table.insert(OpState::default())
     }
 
-    fn poll(&mut self, index: usize, waker: &Waker) -> Poll<Result<u32>> {
+    pub(super) fn poll(&mut self, index: usize, waker: &Waker) -> Poll<Result<u32>> {
         let mut table = self.0.lock().unwrap();
         let state = table.get_mut(index).unwrap();
         match std::mem::take(state) {
@@ -56,51 +61,5 @@ impl OpTable {
             }
             OpState::Completed(..) => unreachable!(),
         }
-    }
-}
-
-#[derive(Default)]
-enum OpState {
-    #[default]
-    Init,
-    Polled(Waker),
-    Completed(Result<u32>),
-}
-
-pub(crate) struct OpHandle {
-    table: OpTable,
-    index: usize,
-    is_finished: bool,
-}
-
-impl OpHandle {
-    fn new(table: OpTable, index: usize) -> Self {
-        Self {
-            table,
-            index,
-            is_finished: false,
-        }
-    }
-
-    pub(super) fn index(&self) -> usize {
-        self.index
-    }
-}
-
-impl Drop for OpHandle {
-    fn drop(&mut self) {
-        assert!(self.is_finished);
-    }
-}
-
-impl Future for OpHandle {
-    type Output = Result<u32>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
-        let index = self.index;
-        self.table.poll(index, cx.waker()).map_ok(|v| {
-            self.is_finished = true;
-            v
-        })
     }
 }

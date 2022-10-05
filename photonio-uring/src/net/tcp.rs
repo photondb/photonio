@@ -1,7 +1,7 @@
 use std::{
     future::Future,
     io::{Error, ErrorKind, Result},
-    net::{Shutdown, SocketAddr, ToSocketAddrs},
+    net::{Shutdown, SocketAddr},
     os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, RawFd},
 };
 
@@ -9,6 +9,7 @@ use socket2::{Domain, SockAddr, Socket, Type};
 
 use crate::{
     io::{Read, Write},
+    net::ToSocketAddrs,
     runtime::syscall,
 };
 
@@ -24,7 +25,7 @@ impl TcpListener {
     /// See also [`std::net::TcpListener::bind`].
     pub async fn bind<A: ToSocketAddrs>(addrs: A) -> Result<Self> {
         let mut last_err = None;
-        for addr in addrs.to_socket_addrs()? {
+        for addr in addrs.to_socket_addrs().await? {
             match listen_addr(addr) {
                 Ok(l) => return Ok(Self(l)),
                 Err(e) => last_err = Some(e),
@@ -37,7 +38,7 @@ impl TcpListener {
     ///
     /// See also [`std::net::TcpListener::accept`].
     pub async fn accept(&self) -> Result<(TcpStream, SocketAddr)> {
-        let (fd, addr) = syscall::accept(self.fd(), libc::SOCK_CLOEXEC).await?;
+        let (fd, addr) = syscall::accept(self.fd()).await?;
         let stream = unsafe { TcpStream::from_raw_fd(fd.into_raw_fd()) };
         let socket_addr = to_socket_addr(addr)?;
         Ok((stream, socket_addr))
