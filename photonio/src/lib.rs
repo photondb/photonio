@@ -15,6 +15,23 @@
 //! [io_uring]: https://unixism.net/loti/
 //! [tokio]: https://docs.rs/tokio
 //!
+//! ## Examples
+//!
+//! ```no_run
+//! use photonio::{
+//!     fs::File,
+//!     io::{Write, WriteAt},
+//! };
+//!
+//! #[photonio::main]
+//! async fn main() -> std::io::Result<()> {
+//!     let mut file = File::create("hello.txt").await?;
+//!     file.write(b"hello").await?;
+//!     file.write_at(b"world", 5).await?;
+//!     Ok(())
+//! }
+//! ```
+//!
 //! ## Limitations
 //!
 //! - Dropping an unfinished future for asynchronous filesystem or networking operations will result

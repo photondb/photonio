@@ -1,4 +1,4 @@
-//! A PhotonIO implementation based on io-uring.
+//! A PhotonIO implementation based on io_uring.
 
 #![warn(missing_docs, unreachable_pub)]
 #![feature(pin_macro, io_error_more, type_alias_impl_trait)]

@@ -6,7 +6,7 @@ license = "MIT"
 authors = ["The PhotonIO Authors"]
 homepage = "https://photondb.io"
 repository = "https://github.com/photondb/photonio"
-description = "A PhotonIO implementation based on io-uring."
+description = "A PhotonIO implementation based on io_uring."
 
 [target.'cfg(target_os = "linux")'.dependencies]
 photonio-base = { version = "0.0.1", path = "../photonio-base" }

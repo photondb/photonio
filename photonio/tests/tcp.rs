@@ -6,7 +6,7 @@ use photonio::{
 };
 
 #[photonio::test(env_logger = true)]
-async fn server() {
+async fn echo() {
     let server = TcpListener::bind("127.0.0.1:1234").await.unwrap();
     let server_addr = server.local_addr().unwrap();
     trace!("server {:?}", server_addr);
