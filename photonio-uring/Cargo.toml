@@ -1,6 +1,6 @@
 [package]
 name = "photonio-uring"
-version = "0.0.2"
+version = "0.0.3"
 edition = "2021"
 license = "MIT"
 authors = ["The PhotonIO Authors"]
@@ -9,7 +9,7 @@ repository = "https://github.com/photondb/photonio"
 description = "A PhotonIO implementation based on io_uring."
 
 [target.'cfg(target_os = "linux")'.dependencies]
-photonio-base = { version = "0.0.2", path = "../photonio-base" }
+photonio-base = { version = "0.0.3", path = "../photonio-base" }
 io-uring = { version = "0.5", features = ["unstable"] }
 futures = "0.3"
 log = "0.4"
