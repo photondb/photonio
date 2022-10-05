@@ -1,6 +1,6 @@
 [package]
 name = "photonio"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 license = "MIT"
 authors = ["The PhotonIO Authors"]
@@ -14,14 +14,14 @@ uring = ["dep:photonio-uring"]
 tokio = ["dep:photonio-tokio"]
 
 [dependencies]
-photonio-macros = { version = "0.0.1", path = "../photonio-macros" }
+photonio-macros = { version = "0.0.2", path = "../photonio-macros" }
 
 [target.'cfg(target_os = "linux")'.dependencies]
-photonio-uring = { version = "0.0.1", path = "../photonio-uring", optional = true }
-photonio-tokio = { version = "0.0.1", path = "../photonio-tokio", optional = true }
+photonio-uring = { version = "0.0.2", path = "../photonio-uring", optional = true }
+photonio-tokio = { version = "0.0.2", path = "../photonio-tokio", optional = true }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]
-photonio-tokio = { version = "0.0.1", path = "../photonio-tokio" }
+photonio-tokio = { version = "0.0.2", path = "../photonio-tokio" }
 
 [dev-dependencies]
 env_logger = "0.9"

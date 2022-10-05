@@ -1,6 +1,6 @@
 [package]
 name = "photonio-macros"
-version = "0.0.1"
+version = "0.0.2"
 edition = "2021"
 license = "MIT"
 authors = ["The PhotonIO Authors"]
@@ -17,4 +17,4 @@ quote = "1.0"
 syn = { version = "1.0", features = ["full"] }
 
 [dev-dependencies]
-photonio = { version = "0.0.1", path = "../photonio" }
+photonio = { version = "0.0.2", path = "../photonio" }
