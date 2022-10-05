@@ -10,7 +10,7 @@ use syn::parse::Parser;
 ///
 /// # Examples
 ///
-/// ```no_run
+/// ```ignore
 /// use photonio::{
 ///     fs::File,
 ///     io::{Write, WriteAt},
@@ -27,7 +27,7 @@ use syn::parse::Parser;
 ///
 /// This is equivalent to:
 ///
-/// ```no_run
+/// ```ignore
 /// use photonio::{fs::File, io::Write, runtime::Builder};
 ///
 /// fn main() -> std::io::Result<()> {
