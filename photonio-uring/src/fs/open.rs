@@ -14,6 +14,7 @@ pub struct OpenOptions {
     truncate: bool,
     create: bool,
     create_new: bool,
+    custom_flags: i32,
 }
 
 impl OpenOptions {
@@ -26,6 +27,7 @@ impl OpenOptions {
             truncate: false,
             create: false,
             create_new: false,
+            custom_flags: 0,
         }
     }
 
@@ -38,6 +40,12 @@ impl OpenOptions {
     /// See also [`std::fs::OpenOptions::write`].
     pub fn write(&mut self, write: bool) -> &mut Self {
         self.write = write;
+        self
+    }
+
+    /// See also [`std::fs::OpenOptions::custom_flags`].
+    pub fn custom_flags(&mut self, flags: i32) -> &mut Self {
+        self.custom_flags = flags;
         self
     }
 
@@ -93,6 +101,7 @@ impl OpenOptions {
                 flags |= libc::O_TRUNC;
             }
         }
+        flags |= self.custom_flags & !libc::O_ACCMODE;
         flags
     }
 }
