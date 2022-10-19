@@ -66,8 +66,30 @@ impl File {
     ///
     /// See also [`std::fs::File::set_len`].
     pub async fn set_len(&self, size: u64) -> Result<()> {
-        let std_file = unsafe { std::fs::File::from_raw_fd(self.fd().as_raw_fd()) };
-        std_file.set_len(size)?;
+        use libc::*;
+        fn cvt(t: libc::c_int) -> crate::io::Result<libc::c_int> {
+            if t == -1 {
+                Err(crate::io::Error::last_os_error())
+            } else {
+                Ok(t)
+            }
+        }
+
+        fn cvt_r<F>(mut f: F) -> crate::io::Result<libc::c_int>
+        where
+            F: FnMut() -> libc::c_int,
+        {
+            loop {
+                match cvt(f()) {
+                    Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {}
+                    other => return other,
+                }
+            }
+        }
+        let size: off64_t = size
+            .try_into()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+        cvt_r(|| unsafe { ftruncate64(self.as_raw_fd(), size) }).map(drop)?;
         Ok(())
     }
 }
