@@ -31,6 +31,10 @@ impl File {
     pub async fn sync_data(&self) -> Result<()> {
         self.0.sync_data().await
     }
+
+    pub async fn set_len(&self, size: u64) -> Result<()> {
+        self.0.set_len(size).await
+    }
 }
 
 impl From<fs::File> for File {

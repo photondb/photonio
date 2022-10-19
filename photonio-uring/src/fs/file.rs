@@ -60,6 +60,16 @@ impl File {
     pub async fn sync_data(&self) -> Result<()> {
         syscall::fdatasync(self.fd()).await
     }
+
+    /// This function is similiar to [`Self::set_len`], except that it might not synchronize
+    /// metadata.
+    ///
+    /// See also [`std::fs::File::set_len`].
+    pub async fn set_len(&self, size: u64) -> Result<()> {
+        let std_file = unsafe { std::fs::File::from_raw_fd(self.fd().as_raw_fd()) };
+        std_file.set_len(size)?;
+        Ok(())
+    }
 }
 
 impl File {
