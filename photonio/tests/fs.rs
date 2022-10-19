@@ -1,21 +1,26 @@
 use photonio::{
-    fs::File,
-    io::{Read, ReadAt, Result, Write, WriteAt},
+    fs::{File, OpenOptions},
+    io::{Read, ReadAt, Write, WriteAt},
 };
 
 #[photonio::test(env_logger = true)]
-async fn file() -> Result<()> {
+async fn file() {
     let path = "/tmp/test.txt";
 
-    let mut file = File::create(path).await?;
-    file.write(b"hello").await?;
-    file.write_at(b"world", 5).await?;
+    let mut file = File::create(path).await.unwrap();
+    file.write(b"hello").await.unwrap();
+    file.write_at(b"world", 5).await.unwrap();
 
     let mut buf = [0; 10];
-    let mut file = File::open(path).await?;
-    file.read(&mut buf[..5]).await?;
-    file.read_at(&mut buf[5..], 5).await?;
+    let mut file = File::open(path).await.unwrap();
+    file.read(&mut buf[..5]).await.unwrap();
+    file.read_at(&mut buf[5..], 5).await.unwrap();
     assert_eq!(&buf, b"helloworld");
 
-    Ok(())
+    let file = OpenOptions::new().write(true).open(path).await.unwrap();
+    let meta = file.metadata().await.unwrap();
+    assert_eq!(meta.len(), 10);
+    file.set_len(5).await.unwrap();
+    let meta = file.metadata().await.unwrap();
+    assert_eq!(meta.len(), 5);
 }

@@ -34,7 +34,7 @@ impl Future for Op {
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context) -> Poll<Self::Output> {
         let index = self.index;
-        self.table.poll(index, cx.waker()).map_ok(|v| {
+        self.table.poll(index, cx.waker()).map(|v| {
             self.is_finished = true;
             v
         })

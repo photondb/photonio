@@ -1,6 +1,7 @@
 use std::{
     future::{ready, Future},
-    io::Result,
+    io::{Error, ErrorKind, Result, Seek as _},
+    mem::ManuallyDrop,
     os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd},
     path::Path,
 };
@@ -27,7 +28,8 @@ impl File {
 
     /// Opens a file in write-only mode.
     ///
-    /// This function will create a file if it does not exist, and will truncate it if it does.
+    /// This function will create a file if it does not exist, and will truncate
+    /// it if it does.
     ///
     /// See also [`std::fs::File::create`].
     pub async fn create<P: AsRef<Path>>(path: P) -> Result<Self> {
@@ -46,6 +48,13 @@ impl File {
         syscall::fstat(self.fd()).await.map(Metadata::from)
     }
 
+    /// Truncates or extends the size of this file.
+    ///
+    /// See also [`std::fs::File::set_len`].
+    pub async fn set_len(&self, size: u64) -> Result<()> {
+        self.as_std(|file| file.set_len(size))
+    }
+
     /// Synchronizes all modified data of this file to disk.
     ///
     /// See also [`std::fs::File::sync_all`].
@@ -53,50 +62,28 @@ impl File {
         syscall::fsync(self.fd()).await
     }
 
-    /// This function is similiar to [`Self::sync_all`], except that it might not synchronize
-    /// metadata.
+    /// This function is similiar to [`Self::sync_all`], except that it might
+    /// not synchronize metadata.
     ///
     /// See also [`std::fs::File::sync_data`].
     pub async fn sync_data(&self) -> Result<()> {
         syscall::fdatasync(self.fd()).await
-    }
-
-    /// This function is similiar to [`Self::set_len`], except that it might not synchronize
-    /// metadata.
-    ///
-    /// See also [`std::fs::File::set_len`].
-    pub async fn set_len(&self, size: u64) -> Result<()> {
-        use libc::*;
-        fn cvt(t: libc::c_int) -> crate::io::Result<libc::c_int> {
-            if t == -1 {
-                Err(crate::io::Error::last_os_error())
-            } else {
-                Ok(t)
-            }
-        }
-
-        fn cvt_r<F>(mut f: F) -> crate::io::Result<libc::c_int>
-        where
-            F: FnMut() -> libc::c_int,
-        {
-            loop {
-                match cvt(f()) {
-                    Err(ref e) if e.kind() == std::io::ErrorKind::Interrupted => {}
-                    other => return other,
-                }
-            }
-        }
-        let size: off64_t = size
-            .try_into()
-            .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
-        cvt_r(|| unsafe { ftruncate64(self.as_raw_fd(), size) }).map(drop)?;
-        Ok(())
     }
 }
 
 impl File {
     fn fd(&self) -> BorrowedFd<'_> {
         self.0.as_fd()
+    }
+
+    fn as_std<F, R>(&self, f: F) -> R
+    where
+        F: Fn(&mut std::fs::File) -> R,
+    {
+        // Convert the file to a `std::fs::File` without taking its ownership.
+        let fd = self.0.as_raw_fd();
+        let mut file = unsafe { ManuallyDrop::new(std::fs::File::from_raw_fd(fd)) };
+        f(&mut file)
     }
 }
 
@@ -135,18 +122,7 @@ impl Seek for File {
     type Seek = impl Future<Output = Result<u64>>;
 
     fn seek(&mut self, pos: SeekFrom) -> Self::Seek {
-        let (offset, whence) = match pos {
-            SeekFrom::Start(offset) => (offset as i64, libc::SEEK_SET),
-            SeekFrom::End(offset) => (offset, libc::SEEK_END),
-            SeekFrom::Current(offset) => (offset, libc::SEEK_CUR),
-        };
-        let ret = unsafe { libc::lseek(self.0.as_raw_fd(), offset, whence) };
-        let res = if ret >= 0 {
-            Ok(ret as u64)
-        } else {
-            Err(std::io::Error::last_os_error())
-        };
-        ready(res)
+        ready(self.as_std(|file| file.seek(pos)))
     }
 }
 
@@ -162,7 +138,12 @@ impl ReadAt for File {
     type ReadAt<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn read_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadAt<'a> {
-        syscall::pread(self.fd(), buf, pos.try_into().unwrap())
+        async move {
+            let pos = pos
+                .try_into()
+                .map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
+            syscall::pread(self.fd(), buf, pos).await
+        }
     }
 }
 
@@ -178,6 +159,11 @@ impl WriteAt for File {
     type WriteAt<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn write_at<'a>(&'a self, buf: &'a [u8], pos: u64) -> Self::WriteAt<'a> {
-        syscall::pwrite(self.0.as_fd(), buf, pos.try_into().unwrap())
+        async move {
+            let pos = pos
+                .try_into()
+                .map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
+            syscall::pwrite(self.0.as_fd(), buf, pos).await
+        }
     }
 }
