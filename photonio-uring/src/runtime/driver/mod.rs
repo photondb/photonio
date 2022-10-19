@@ -44,7 +44,7 @@ impl Driver {
     }
 
     pub(super) fn park(&mut self) -> Result<()> {
-        // Registers the eventfd to unpark this driver.
+        // Register the eventfd to unpark this driver.
         let fd = types::Fd(self.eventfd.as_raw_fd());
         let buf = &mut self.eventbuf;
         let sqe = opcode::Read::new(fd, buf.as_mut_ptr(), buf.len() as _)

@@ -14,7 +14,7 @@ impl Builder {
     pub fn new() -> Self {
         Self {
             num_threads: num_cpus::get(),
-            thread_stack_size: 1 << 20,
+            thread_stack_size: 2 << 20,
             event_interval: 61,
         }
     }

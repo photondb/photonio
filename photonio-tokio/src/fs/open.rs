@@ -21,11 +21,6 @@ impl OpenOptions {
         self
     }
 
-    pub fn custom_flags(&mut self, flags: i32) -> &mut Self {
-        self.0.custom_flags(flags);
-        self
-    }
-
     pub fn append(&mut self, append: bool) -> &mut Self {
         self.0.append(append);
         self
@@ -60,5 +55,18 @@ impl Default for OpenOptions {
 impl From<fs::OpenOptions> for OpenOptions {
     fn from(options: fs::OpenOptions) -> Self {
         Self(options)
+    }
+}
+
+#[cfg(unix)]
+impl std::os::unix::fs::OpenOptionsExt for OpenOptions {
+    fn mode(&mut self, mode: u32) -> &mut Self {
+        self.0.mode(mode);
+        self
+    }
+
+    fn custom_flags(&mut self, flags: i32) -> &mut Self {
+        self.0.custom_flags(flags);
+        self
     }
 }

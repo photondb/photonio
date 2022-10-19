@@ -47,7 +47,7 @@ impl Shared {
         F: Future + Send + 'static,
         F::Output: Send + 'static,
     {
-        // Dispatches tasks in a round-robin fashion.
+        // Dispatch tasks in a round-robin fashion.
         let id = self.0.next_id.fetch_add(1, Ordering::Relaxed);
         let index = (id % self.0.workers.len() as u64) as usize;
         trace!("dispatch task {} to worker {}", id, index);

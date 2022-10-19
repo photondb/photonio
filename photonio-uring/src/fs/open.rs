@@ -1,4 +1,4 @@
-use std::{io::Result, path::Path};
+use std::{io::Result, os::unix::fs::OpenOptionsExt, path::Path};
 
 use super::File;
 use crate::runtime::syscall;
@@ -14,6 +14,7 @@ pub struct OpenOptions {
     truncate: bool,
     create: bool,
     create_new: bool,
+    mode: u32,
     custom_flags: i32,
 }
 
@@ -27,6 +28,7 @@ impl OpenOptions {
             truncate: false,
             create: false,
             create_new: false,
+            mode: 0o666,
             custom_flags: 0,
         }
     }
@@ -40,12 +42,6 @@ impl OpenOptions {
     /// See also [`std::fs::OpenOptions::write`].
     pub fn write(&mut self, write: bool) -> &mut Self {
         self.write = write;
-        self
-    }
-
-    /// See also [`std::fs::OpenOptions::custom_flags`].
-    pub fn custom_flags(&mut self, flags: i32) -> &mut Self {
-        self.custom_flags = flags;
         self
     }
 
@@ -75,14 +71,14 @@ impl OpenOptions {
 
     /// See also [`std::fs::OpenOptions::open`].
     pub async fn open<P: AsRef<Path>>(&self, path: P) -> Result<File> {
-        syscall::open(path.as_ref(), self.open_flags(), 0o666)
+        syscall::open(path.as_ref(), self.flags(), self.mode)
             .await
             .map(File::from)
     }
 }
 
 impl OpenOptions {
-    fn open_flags(&self) -> libc::c_int {
+    fn flags(&self) -> libc::c_int {
         let mut flags = match (self.read, self.write, self.append) {
             (true, _, true) => libc::O_RDWR | libc::O_APPEND,
             (true, true, false) => libc::O_RDWR,
@@ -109,5 +105,17 @@ impl OpenOptions {
 impl Default for OpenOptions {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl OpenOptionsExt for OpenOptions {
+    fn mode(&mut self, mode: u32) -> &mut Self {
+        self.mode = mode;
+        self
+    }
+
+    fn custom_flags(&mut self, flags: i32) -> &mut Self {
+        self.custom_flags = flags;
+        self
     }
 }

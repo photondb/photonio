@@ -24,16 +24,16 @@ impl File {
         self.0.metadata().await.map(Metadata::from)
     }
 
+    pub async fn set_len(&self, size: u64) -> Result<()> {
+        self.0.set_len(size).await
+    }
+
     pub async fn sync_all(&self) -> Result<()> {
         self.0.sync_all().await
     }
 
     pub async fn sync_data(&self) -> Result<()> {
         self.0.sync_data().await
-    }
-
-    pub async fn set_len(&self, size: u64) -> Result<()> {
-        self.0.set_len(size).await
     }
 }
 

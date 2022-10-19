@@ -1,6 +1,7 @@
 //! Primitives for asynchronous tasks.
 //!
-//! This module is similar to [`std::thread`], but for asynchronous tasks instead of threads.
+//! This module is similar to [`std::thread`], but for asynchronous tasks
+//! instead of threads.
 
 pub use std::thread::Result;
 use std::{
