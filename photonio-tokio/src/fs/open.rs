@@ -21,6 +21,11 @@ impl OpenOptions {
         self
     }
 
+    pub fn custom_flags(&mut self, flags: i32) -> &mut Self {
+        self.0.custom_flags(flags);
+        self
+    }
+
     pub fn append(&mut self, append: bool) -> &mut Self {
         self.0.append(append);
         self
