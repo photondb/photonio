@@ -27,3 +27,69 @@ impl From<fs::Metadata> for Metadata {
         Self(metadata)
     }
 }
+
+impl std::os::unix::prelude::MetadataExt for Metadata {
+    fn dev(&self) -> u64 {
+        self.0.dev()
+    }
+
+    fn ino(&self) -> u64 {
+        unimplemented!()
+    }
+
+    fn mode(&self) -> u32 {
+        unimplemented!()
+    }
+
+    fn nlink(&self) -> u64 {
+        unimplemented!()
+    }
+
+    fn uid(&self) -> u32 {
+        unimplemented!()
+    }
+
+    fn gid(&self) -> u32 {
+        unimplemented!()
+    }
+
+    fn rdev(&self) -> u64 {
+        unimplemented!()
+    }
+
+    fn size(&self) -> u64 {
+        unimplemented!()
+    }
+
+    fn atime(&self) -> i64 {
+        unimplemented!()
+    }
+
+    fn atime_nsec(&self) -> i64 {
+        unimplemented!()
+    }
+
+    fn mtime(&self) -> i64 {
+        unimplemented!()
+    }
+
+    fn mtime_nsec(&self) -> i64 {
+        unimplemented!()
+    }
+
+    fn ctime(&self) -> i64 {
+        unimplemented!()
+    }
+
+    fn ctime_nsec(&self) -> i64 {
+        unimplemented!()
+    }
+
+    fn blksize(&self) -> u64 {
+        unimplemented!()
+    }
+
+    fn blocks(&self) -> u64 {
+        unimplemented!()
+    }
+}
