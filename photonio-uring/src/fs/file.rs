@@ -23,6 +23,7 @@ impl File {
     ///
     /// See also [`std::fs::File::open`].
     pub async fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
+        let path = path.as_ref();
         OpenOptions::new().read(true).open(path).await
     }
 

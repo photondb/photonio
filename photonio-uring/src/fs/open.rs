@@ -71,7 +71,8 @@ impl OpenOptions {
 
     /// See also [`std::fs::OpenOptions::open`].
     pub async fn open<P: AsRef<Path>>(&self, path: P) -> Result<File> {
-        syscall::open(path.as_ref(), self.flags(), self.mode)
+        let path = path.as_ref();
+        syscall::open(path, self.flags(), self.mode)
             .await
             .map(File::from)
     }

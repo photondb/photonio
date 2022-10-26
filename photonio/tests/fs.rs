@@ -23,8 +23,4 @@ async fn file() {
     file.set_len(5).await.unwrap();
     let meta = file.metadata().await.unwrap();
     assert_eq!(meta.len(), 5);
-
-    use std::os::unix::prelude::MetadataExt;
-    let dev = meta.dev();
-    assert_ne!(dev, 0);
 }
