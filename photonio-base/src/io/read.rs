@@ -63,6 +63,19 @@ pub trait ReadAt {
     fn read_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadAt<'a>;
 }
 
+/// Read some bytes from an object at a give position use fixed buffer.
+pub trait ReadAtFixed {
+    /// A future that resolves to the result of [`Self::read_at_fixed`].
+    type ReadAt<'a>: Future<Output = Result<usize>> + 'a
+    where
+        Self: 'a;
+
+    /// Reads some bytes from this object at `pos` into fixed `buf`.
+    ///
+    /// Returns the number of bytes read.
+    fn read_at_fixed<'a>(&'a self, buf: &'a mut [u8], pos: u64, buf_idx: u16) -> Self::ReadAt<'a>;
+}
+
 /// Provides extension methods for [`ReadAt`].
 pub trait ReadAtExt {
     /// A future that resolves to the result of [`Self::read_exact_at`].

@@ -18,6 +18,19 @@ pub trait Write {
     fn write<'a>(&'a mut self, buf: &'a [u8]) -> Self::Write<'a>;
 }
 
+/// Writes some fixed buffer bytes into an object.
+pub trait WriteAtFixed {
+    /// A future that resolves to the result of [`Self::write_at_fixed`].
+    type WriteAt<'a>: Future<Output = Result<usize>> + 'a
+    where
+        Self: 'a;
+
+    /// Writes some bytes from fixed `buf` into this object at `pos`.
+    ///
+    /// Returns the number of bytes written.
+    fn write_at_fixed<'a>(&'a mut self, buf: &'a [u8], pos: u64, buf_idx: u16)
+        -> Self::WriteAt<'a>;
+}
 /// Provides extension methods for [`Write`].
 pub trait WriteExt {
     /// A future that resolves to the result of [`Self::write_all`].

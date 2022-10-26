@@ -15,7 +15,7 @@ use shared::Shared;
 mod driver;
 
 mod worker;
-pub use worker::spawn;
+pub use worker::{alloc_uring_buf, spawn};
 
 pub(crate) mod syscall;
 

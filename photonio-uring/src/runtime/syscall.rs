@@ -153,9 +153,35 @@ pub(crate) async fn pread<'a>(
     submit(sqe)?.await.map(|n| n as _)
 }
 
+pub(crate) async fn pread_fixed<'a>(
+    fd: BorrowedFd<'a>,
+    buf: &'a mut [u8],
+    pos: libc::off64_t,
+    buf_idx: u16,
+) -> Result<usize> {
+    let fd = types::Fd(fd.as_raw_fd());
+    let sqe = opcode::ReadFixed::new(fd, buf.as_mut_ptr(), buf.len() as _, buf_idx)
+        .offset(pos)
+        .build();
+    submit(sqe)?.await.map(|n| n as _)
+}
+
 /// See also `man write.2`.
 pub(crate) async fn write<'a>(fd: BorrowedFd<'a>, buf: &'a [u8]) -> Result<usize> {
     pwrite(fd, buf, -1).await
+}
+
+pub(crate) async fn write_at_fixed<'a>(
+    fd: BorrowedFd<'a>,
+    buf: &'a [u8],
+    pos: libc::off64_t,
+    buf_idx: u16,
+) -> Result<usize> {
+    let fd = types::Fd(fd.as_raw_fd());
+    let sqe = opcode::WriteFixed::new(fd, buf.as_ptr(), buf.len() as _, buf_idx)
+        .offset(pos)
+        .build();
+    submit(sqe)?.await.map(|n| n as _)
 }
 
 /// See also `man pwrite.2`.

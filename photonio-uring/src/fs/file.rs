@@ -6,6 +6,8 @@ use std::{
     path::Path,
 };
 
+use photonio_base::io::{ReadAtFixed, WriteAtFixed};
+
 use super::{Metadata, OpenOptions};
 use crate::{
     io::{Read, ReadAt, Seek, SeekFrom, Write, WriteAt},
@@ -165,6 +167,37 @@ impl WriteAt for File {
                 .try_into()
                 .map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
             syscall::pwrite(self.0.as_fd(), buf, pos).await
+        }
+    }
+}
+
+impl WriteAtFixed for File {
+    type WriteAt<'a> = impl Future<Output = Result<usize>> + 'a;
+
+    fn write_at_fixed<'a>(
+        &'a mut self,
+        buf: &'a [u8],
+        pos: u64,
+        buf_idx: u16,
+    ) -> Self::WriteAt<'a> {
+        async move {
+            let pos = pos
+                .try_into()
+                .map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
+            syscall::write_at_fixed(self.fd(), buf, pos, buf_idx).await
+        }
+    }
+}
+
+impl ReadAtFixed for File {
+    type ReadAt<'a> = impl Future<Output = Result<usize>> + 'a;
+
+    fn read_at_fixed<'a>(&'a self, buf: &'a mut [u8], pos: u64, buf_idx: u16) -> Self::ReadAt<'a> {
+        async move {
+            let pos = pos
+                .try_into()
+                .map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
+            syscall::pread_fixed(self.fd(), buf, pos, buf_idx).await
         }
     }
 }

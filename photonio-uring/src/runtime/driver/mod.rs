@@ -37,6 +37,10 @@ impl Driver {
         Ok(Op::new(self.table.clone(), index))
     }
 
+    pub(super) fn register_buf(&mut self, buffers: &[libc::iovec]) -> Result<()> {
+        self.io.submitter().register_buffers(buffers)
+    }
+
     pub(super) fn tick(&mut self) -> Result<()> {
         self.submit()?;
         self.pull();
