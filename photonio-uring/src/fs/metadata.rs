@@ -61,68 +61,68 @@ impl fmt::Debug for Metadata {
     }
 }
 
-impl std::os::unix::prelude::MetadataExt for Metadata {
+impl std::os::unix::fs::MetadataExt for Metadata {
     fn dev(&self) -> u64 {
         libc::makedev(self.0.stx_dev_major, self.0.stx_dev_minor)
     }
 
     fn ino(&self) -> u64 {
-        unimplemented!()
+        self.0.stx_ino
     }
 
     fn mode(&self) -> u32 {
-        unimplemented!()
+        self.0.stx_mode.into()
     }
 
     fn nlink(&self) -> u64 {
-        unimplemented!()
+        self.0.stx_nlink.into()
     }
 
     fn uid(&self) -> u32 {
-        unimplemented!()
+        self.0.stx_uid
     }
 
     fn gid(&self) -> u32 {
-        unimplemented!()
+        self.0.stx_gid
     }
 
     fn rdev(&self) -> u64 {
-        unimplemented!()
+        libc::makedev(self.0.stx_rdev_major, self.0.stx_rdev_minor)
     }
 
     fn size(&self) -> u64 {
-        unimplemented!()
+        self.0.stx_size
     }
 
     fn atime(&self) -> i64 {
-        unimplemented!()
+        self.0.stx_atime.tv_sec
     }
 
     fn atime_nsec(&self) -> i64 {
-        unimplemented!()
+        self.0.stx_atime.tv_nsec.into()
     }
 
     fn mtime(&self) -> i64 {
-        unimplemented!()
+        self.0.stx_mtime.tv_sec
     }
 
     fn mtime_nsec(&self) -> i64 {
-        unimplemented!()
+        self.0.stx_mtime.tv_nsec.into()
     }
 
     fn ctime(&self) -> i64 {
-        unimplemented!()
+        self.0.stx_ctime.tv_sec
     }
 
     fn ctime_nsec(&self) -> i64 {
-        unimplemented!()
+        self.0.stx_ctime.tv_nsec.into()
     }
 
     fn blksize(&self) -> u64 {
-        unimplemented!()
+        self.0.stx_blksize.into()
     }
 
     fn blocks(&self) -> u64 {
-        unimplemented!()
+        self.0.stx_blocks
     }
 }

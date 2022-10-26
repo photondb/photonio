@@ -17,20 +17,25 @@ pub use metadata::Metadata;
 
 /// An async version of [`std::fs::rename`].
 pub async fn rename<P: AsRef<Path>, Q: AsRef<Path>>(from: P, to: Q) -> Result<()> {
-    syscall::rename(from.as_ref(), to.as_ref()).await
+    let from = from.as_ref();
+    let to = to.as_ref();
+    syscall::rename(from, to).await
 }
 
 /// An async version of [`std::fs::remove_file`].
 pub async fn remove_file<P: AsRef<Path>>(path: P) -> Result<()> {
-    syscall::unlink(path.as_ref()).await
+    let path = path.as_ref();
+    syscall::unlink(path).await
 }
 
 /// An async version of [`std::fs::create_dir`].
 pub async fn create_dir<P: AsRef<Path>>(path: P) -> Result<()> {
-    syscall::mkdir(path.as_ref(), 0o777).await
+    let path = path.as_ref();
+    syscall::mkdir(path, 0o777).await
 }
 
 /// An async version of [`std::fs::remove_dir`].
 pub async fn remove_dir<P: AsRef<Path>>(path: P) -> Result<()> {
-    syscall::rmdir(path.as_ref()).await
+    let path = path.as_ref();
+    syscall::rmdir(path).await
 }

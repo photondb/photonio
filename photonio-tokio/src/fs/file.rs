@@ -1,4 +1,4 @@
-use std::{future::Future, io::Result, mem::ManuallyDrop};
+use std::{future::Future, io::Result, mem::ManuallyDrop, path::Path};
 
 use tokio::{
     fs,
@@ -12,11 +12,11 @@ use crate::io::{Read, ReadAt, Write, WriteAt};
 pub struct File(fs::File);
 
 impl File {
-    pub async fn open<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
+    pub async fn open<P: AsRef<Path>>(path: P) -> Result<Self> {
         fs::File::open(path).await.map(Self)
     }
 
-    pub async fn create<P: AsRef<std::path::Path>>(path: P) -> Result<Self> {
+    pub async fn create<P: AsRef<Path>>(path: P) -> Result<Self> {
         fs::File::create(path).await.map(Self)
     }
 
