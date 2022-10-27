@@ -8,7 +8,7 @@ use std::{
 /// Writes some bytes into an object.
 pub trait Write {
     /// A future that resolves to the result of [`Self::write`].
-    type Write<'a>: Future<Output = Result<usize>> + 'a
+    type Write<'a>: Future<Output = Result<usize>> + 'a + Send
     where
         Self: 'a;
 
