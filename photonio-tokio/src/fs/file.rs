@@ -1,10 +1,4 @@
-use std::{
-    future::Future,
-    io::Result,
-    mem::ManuallyDrop,
-    os::fd::{AsRawFd, FromRawFd, RawFd},
-    path::Path,
-};
+use std::{future::Future, io::Result, mem::ManuallyDrop, path::Path};
 
 use tokio::{
     fs,
@@ -49,14 +43,16 @@ impl From<fs::File> for File {
     }
 }
 
-impl AsRawFd for File {
-    fn as_raw_fd(&self) -> RawFd {
+#[cfg(unix)]
+impl std::os::fd::AsRawFd for File {
+    fn as_raw_fd(&self) -> std::os::fd::RawFd {
         self.0.as_raw_fd()
     }
 }
 
-impl FromRawFd for File {
-    unsafe fn from_raw_fd(fd: RawFd) -> Self {
+#[cfg(unix)]
+impl std::os::fd::FromRawFd for File {
+    unsafe fn from_raw_fd(fd: std::os::fd::RawFd) -> Self {
         Self(fs::File::from_raw_fd(fd))
     }
 }
@@ -75,7 +71,10 @@ impl ReadAt for File {
 
     // FIXME: Make it asynchronous when Tokio supports positional reads.
     fn read_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadAt<'a> {
-        use std::os::unix::fs::FileExt;
+        use std::os::{
+            fd::{AsRawFd, FromRawFd},
+            unix::fs::FileExt,
+        };
         let file = unsafe { ManuallyDrop::new(std::fs::File::from_raw_fd(self.0.as_raw_fd())) };
         async move { file.read_at(buf, pos) }
     }
@@ -95,7 +94,10 @@ impl WriteAt for File {
 
     // FIXME: Make it asynchronous when Tokio supports positional writes.
     fn write_at<'a>(&'a self, buf: &'a [u8], pos: u64) -> Self::WriteAt<'a> {
-        use std::os::unix::fs::FileExt;
+        use std::os::{
+            fd::{AsRawFd, FromRawFd},
+            unix::fs::FileExt,
+        };
         let file = unsafe { ManuallyDrop::new(std::fs::File::from_raw_fd(self.0.as_raw_fd())) };
         async move { file.write_at(buf, pos) }
     }
