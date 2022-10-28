@@ -95,12 +95,6 @@ impl From<OwnedFd> for File {
     }
 }
 
-impl AsFd for File {
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        self.0.as_fd()
-    }
-}
-
 impl AsRawFd for File {
     fn as_raw_fd(&self) -> RawFd {
         self.0.as_raw_fd()
@@ -113,6 +107,14 @@ impl FromRawFd for File {
     }
 }
 
+// only used for photonio_uring internal.
+impl AsFd for File {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.0.as_fd()
+    }
+}
+
+// only used for photonio_uring internal.
 impl IntoRawFd for File {
     fn into_raw_fd(self) -> RawFd {
         self.0.into_raw_fd()
