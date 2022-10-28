@@ -1,4 +1,4 @@
-use std::{future::Future, io::Result, mem::ManuallyDrop, path::Path};
+use std::{future::Future, io::Result, path::Path};
 
 use tokio::{
     fs,
@@ -6,7 +6,7 @@ use tokio::{
 };
 
 use super::Metadata;
-use crate::io::{Read, ReadAt, Write, WriteAt};
+use crate::io::{Read, Write};
 
 #[derive(Debug)]
 pub struct File(fs::File);
@@ -43,40 +43,11 @@ impl From<fs::File> for File {
     }
 }
 
-#[cfg(unix)]
-impl std::os::fd::AsRawFd for File {
-    fn as_raw_fd(&self) -> std::os::fd::RawFd {
-        self.0.as_raw_fd()
-    }
-}
-
-#[cfg(unix)]
-impl std::os::fd::FromRawFd for File {
-    unsafe fn from_raw_fd(fd: std::os::fd::RawFd) -> Self {
-        Self(fs::File::from_raw_fd(fd))
-    }
-}
-
 impl Read for File {
     type Read<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Self::Read<'a> {
         self.0.read(buf)
-    }
-}
-
-#[cfg(unix)]
-impl ReadAt for File {
-    type ReadAt<'a> = impl Future<Output = Result<usize>> + 'a;
-
-    // FIXME: Make it asynchronous when Tokio supports positional reads.
-    fn read_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadAt<'a> {
-        use std::os::{
-            fd::{AsRawFd, FromRawFd},
-            unix::fs::FileExt,
-        };
-        let file = unsafe { ManuallyDrop::new(std::fs::File::from_raw_fd(self.0.as_raw_fd())) };
-        async move { file.read_at(buf, pos) }
     }
 }
 
@@ -89,16 +60,49 @@ impl Write for File {
 }
 
 #[cfg(unix)]
-impl WriteAt for File {
-    type WriteAt<'a> = impl Future<Output = Result<usize>> + 'a;
-
-    // FIXME: Make it asynchronous when Tokio supports positional writes.
-    fn write_at<'a>(&'a self, buf: &'a [u8], pos: u64) -> Self::WriteAt<'a> {
-        use std::os::{
-            fd::{AsRawFd, FromRawFd},
+mod unix {
+    use std::{
+        future::Future,
+        io::Result,
+        mem::ManuallyDrop,
+        os::{
+            fd::{AsRawFd, FromRawFd, RawFd},
             unix::fs::FileExt,
-        };
-        let file = unsafe { ManuallyDrop::new(std::fs::File::from_raw_fd(self.0.as_raw_fd())) };
-        async move { file.write_at(buf, pos) }
+        },
+    };
+
+    use super::File;
+    use crate::io::{ReadAt, WriteAt};
+
+    impl AsRawFd for File {
+        fn as_raw_fd(&self) -> RawFd {
+            self.0.as_raw_fd()
+        }
+    }
+
+    impl FromRawFd for File {
+        unsafe fn from_raw_fd(fd: RawFd) -> Self {
+            Self(tokio::fs::File::from_raw_fd(fd))
+        }
+    }
+
+    impl ReadAt for File {
+        type ReadAt<'a> = impl Future<Output = Result<usize>> + 'a;
+
+        // FIXME: Make it asynchronous when Tokio supports positional reads.
+        fn read_at<'a>(&'a self, buf: &'a mut [u8], pos: u64) -> Self::ReadAt<'a> {
+            let file = unsafe { ManuallyDrop::new(std::fs::File::from_raw_fd(self.0.as_raw_fd())) };
+            async move { file.read_at(buf, pos) }
+        }
+    }
+
+    impl WriteAt for File {
+        type WriteAt<'a> = impl Future<Output = Result<usize>> + 'a;
+
+        // FIXME: Make it asynchronous when Tokio supports positional writes.
+        fn write_at<'a>(&'a self, buf: &'a [u8], pos: u64) -> Self::WriteAt<'a> {
+            let file = unsafe { ManuallyDrop::new(std::fs::File::from_raw_fd(self.0.as_raw_fd())) };
+            async move { file.write_at(buf, pos) }
+        }
     }
 }
