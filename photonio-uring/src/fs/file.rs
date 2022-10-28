@@ -2,7 +2,7 @@ use std::{
     future::{ready, Future},
     io::{Error, ErrorKind, Result, Seek as _},
     mem::ManuallyDrop,
-    os::unix::io::{AsFd, AsRawFd, BorrowedFd, FromRawFd, IntoRawFd, OwnedFd, RawFd},
+    os::fd::{AsFd, AsRawFd, BorrowedFd, FromRawFd, OwnedFd, RawFd},
     path::Path,
 };
 
@@ -46,7 +46,7 @@ impl File {
     ///
     /// See also [`std::fs::File::metadata`].
     pub async fn metadata(&self) -> Result<Metadata> {
-        syscall::fstat(self.fd()).await.map(Metadata::from)
+        syscall::fstat(self.as_fd()).await.map(Metadata::from)
     }
 
     /// Truncates or extends the size of this file.
@@ -60,7 +60,7 @@ impl File {
     ///
     /// See also [`std::fs::File::sync_all`].
     pub async fn sync_all(&self) -> Result<()> {
-        syscall::fsync(self.fd()).await
+        syscall::fsync(self.as_fd()).await
     }
 
     /// This function is similiar to [`Self::sync_all`], except that it might
@@ -68,15 +68,11 @@ impl File {
     ///
     /// See also [`std::fs::File::sync_data`].
     pub async fn sync_data(&self) -> Result<()> {
-        syscall::fdatasync(self.fd()).await
+        syscall::fdatasync(self.as_fd()).await
     }
 }
 
 impl File {
-    fn fd(&self) -> BorrowedFd<'_> {
-        self.0.as_fd()
-    }
-
     fn as_std<F, R>(&self, f: F) -> R
     where
         F: Fn(&mut std::fs::File) -> R,
@@ -95,6 +91,13 @@ impl From<OwnedFd> for File {
     }
 }
 
+#[doc(hidden)]
+impl AsFd for File {
+    fn as_fd(&self) -> BorrowedFd<'_> {
+        self.0.as_fd()
+    }
+}
+
 impl AsRawFd for File {
     fn as_raw_fd(&self) -> RawFd {
         self.0.as_raw_fd()
@@ -104,20 +107,6 @@ impl AsRawFd for File {
 impl FromRawFd for File {
     unsafe fn from_raw_fd(fd: RawFd) -> Self {
         Self(OwnedFd::from_raw_fd(fd))
-    }
-}
-
-// only used for photonio_uring internal.
-impl AsFd for File {
-    fn as_fd(&self) -> BorrowedFd<'_> {
-        self.0.as_fd()
-    }
-}
-
-// only used for photonio_uring internal.
-impl IntoRawFd for File {
-    fn into_raw_fd(self) -> RawFd {
-        self.0.into_raw_fd()
     }
 }
 
@@ -133,7 +122,7 @@ impl Read for File {
     type Read<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn read<'a>(&'a mut self, buf: &'a mut [u8]) -> Self::Read<'a> {
-        syscall::read(self.fd(), buf)
+        syscall::read(self.0.as_fd(), buf)
     }
 }
 
@@ -145,7 +134,7 @@ impl ReadAt for File {
             let pos = pos
                 .try_into()
                 .map_err(|e| Error::new(ErrorKind::InvalidInput, e))?;
-            syscall::pread(self.fd(), buf, pos).await
+            syscall::pread(self.0.as_fd(), buf, pos).await
         }
     }
 }
@@ -154,7 +143,7 @@ impl Write for File {
     type Write<'a> = impl Future<Output = Result<usize>> + 'a;
 
     fn write<'a>(&'a mut self, buf: &'a [u8]) -> Self::Write<'a> {
-        syscall::write(self.fd(), buf)
+        syscall::write(self.0.as_fd(), buf)
     }
 }
 
