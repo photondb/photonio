@@ -48,14 +48,15 @@ where
     S: Schedule,
 {
     head: Head,
-    core: Mutex<Core<F, S>>,
+    core: Mutex<Core<F>>,
+    schedule: S,
 }
 
 impl<F, S> Suit<F, S>
 where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
-    S: Schedule + Send,
+    S: Schedule + Send + Sync,
 {
     pub(super) fn new(id: u64, future: F, schedule: S) -> Self {
         Self {
@@ -67,8 +68,8 @@ where
                 state: State::Init,
                 waker: None,
                 future,
-                schedule,
             }),
+            schedule,
         }
     }
 }
@@ -77,24 +78,21 @@ impl<F, S> ArcWake for Suit<F, S>
 where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
-    S: Schedule + Send,
+    S: Schedule + Send + Sync,
 {
     fn wake_by_ref(this: &Arc<Self>) {
         let task = Task::from_suit(this.clone());
-        let core = this.core.lock().unwrap();
-        core.schedule.schedule(task);
+        this.schedule.schedule(task);
     }
 }
 
-struct Core<F, S>
+struct Core<F>
 where
     F: Future,
-    S: Schedule,
 {
     state: State<F::Output>,
     waker: Option<Waker>,
     future: F,
-    schedule: S,
 }
 
 enum State<T> {
@@ -104,10 +102,9 @@ enum State<T> {
     Consumed,
 }
 
-impl<F, S> Core<F, S>
+impl<F> Core<F>
 where
     F: Future,
-    S: Schedule,
 {
     fn join(&mut self, waker: &Waker) -> Poll<Result<F::Output>> {
         match std::mem::replace(&mut self.state, State::Init) {
@@ -164,7 +161,7 @@ impl VTable {
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,
-        S: Schedule + Send,
+        S: Schedule + Send + Sync,
     {
         &VTable {
             drop: drop::<F, S>,
@@ -195,7 +192,7 @@ unsafe fn poll<F, S>(head: &Arc<Head>)
 where
     F: Future + Send + 'static,
     F::Output: Send + 'static,
-    S: Schedule + Send,
+    S: Schedule + Send + Sync,
 {
     let suit = ManuallyDrop::new(suit::<F, S>(head));
     let waker = waker_ref(&suit);

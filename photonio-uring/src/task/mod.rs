@@ -34,7 +34,7 @@ impl Task {
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,
-        S: Schedule + Send,
+        S: Schedule + Send + Sync,
     {
         let suit = Arc::new(Suit::new(id, future, schedule));
         let task = Self::from_suit(suit.clone());
@@ -46,7 +46,7 @@ impl Task {
     where
         F: Future + Send + 'static,
         F::Output: Send + 'static,
-        S: Schedule + Send,
+        S: Schedule + Send + Sync,
     {
         let head = unsafe { Arc::from_raw(Arc::into_raw(suit) as *const Head) };
         Self(ManuallyDrop::new(head))
