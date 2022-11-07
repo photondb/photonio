@@ -147,6 +147,10 @@ where
             State::Finished(_) | State::Consumed => unreachable!(),
         }
     }
+
+    fn is_completed(&self) -> bool {
+        matches!(self.state, State::Finished(_) | State::Consumed)
+    }
 }
 
 struct VTable {
@@ -198,6 +202,9 @@ where
     let waker = waker_ref(&suit);
     let mut cx = Context::from_waker(&waker);
     let mut core = suit.core.lock().unwrap();
+    if core.is_completed() {
+        return;
+    }
     let future = Pin::new_unchecked(&mut core.future);
     let result = panic::catch_unwind(panic::AssertUnwindSafe(|| future.poll(&mut cx)));
     match result {
