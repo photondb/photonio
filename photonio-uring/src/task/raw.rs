@@ -149,10 +149,7 @@ where
     }
 
     fn is_completed(&self) -> bool {
-        match self.state {
-            State::Finished(_) | State::Consumed => true,
-            _ => false,
-        }
+        matches!(self.state, State::Finished(_) | State::Consumed)
     }
 }
 
