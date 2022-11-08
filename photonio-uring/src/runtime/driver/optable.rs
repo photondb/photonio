@@ -36,7 +36,9 @@ impl OpTable {
                 Poll::Pending
             }
             OpState::Polled(w) => {
-                if !w.will_wake(waker) {
+                if w.will_wake(waker) {
+                    *state = OpState::Polled(w);
+                } else {
                     *state = OpState::Polled(waker.clone());
                 }
                 Poll::Pending
