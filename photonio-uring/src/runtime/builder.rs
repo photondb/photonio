@@ -15,7 +15,7 @@ impl Builder {
         Self {
             num_threads: num_cpus::get(),
             thread_stack_size: 2 << 20,
-            event_interval: 61,
+            event_interval: 3,
         }
     }
 
