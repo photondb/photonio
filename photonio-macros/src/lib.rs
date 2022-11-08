@@ -78,6 +78,9 @@ fn transform(attr: TokenStream, item: TokenStream, is_test: bool) -> TokenStream
     if let Some(v) = opts.num_threads {
         rt = quote! { #rt.num_threads(#v) }
     }
+    if let Some(v) = opts.event_interval {
+        rt = quote! { #rt.event_interval(#v) }
+    }
 
     func.sig.asyncness = None;
     let block = func.block;
@@ -100,6 +103,7 @@ fn transform(attr: TokenStream, item: TokenStream, is_test: bool) -> TokenStream
 #[derive(Default)]
 struct Options {
     num_threads: Option<usize>,
+    event_interval: Option<usize>,
     // Internal options for tests.
     env_logger: bool,
 }
@@ -119,6 +123,9 @@ impl Options {
             match name.as_str() {
                 "num_threads" => {
                     opts.num_threads = Some(parse_int(&attr.lit)?);
+                }
+                "event_interval" => {
+                    opts.event_interval = Some(parse_int(&attr.lit)?);
                 }
                 "env_logger" => {
                     opts.env_logger = true;
